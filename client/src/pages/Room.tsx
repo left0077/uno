@@ -316,7 +316,6 @@ export function Room({
 // 玩家卡片组件
 interface PlayerCardProps {
   player: Player;
-  index: number;
   isHost: boolean;
   isCurrentPlayer: boolean;
   canKick: boolean;

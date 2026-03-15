@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import type { Room, Player, GameState, Card } from '../../../shared/types';
 
 // 默认服务器地址
-const DEFAULT_SERVER_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, '') + ':3001';
+const DEFAULT_SERVER_URL = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, '') + ':3001';
 
 interface GameStore {
   // 玩家信息
