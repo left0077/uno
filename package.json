@@ -8,7 +8,8 @@
     "dev:client": "cd client && npm run dev",
     "dev:server": "cd server && npm run dev",
     "install:all": "npm install && cd client && npm install && cd ../server && npm install",
-    "build": "cd client && npm run build && cd ../server && npm run build"
+    "build": "cd client && npm run build && cd ../server && npm run build",
+    "start": "cd server && npm start"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
