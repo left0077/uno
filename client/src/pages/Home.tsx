@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Gamepad2, Plus, LogIn, Users, Settings } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Gamepad2, Plus, LogIn, Users, Settings, Sparkles } from 'lucide-react';
 
 interface HomeProps {
   nickname: string;
@@ -24,16 +24,33 @@ export function Home({
 }: HomeProps) {
   const [roomCode, setRoomCode] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
+  const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
   
   // 检查是否有邀请链接的房间号
   useEffect(() => {
     const inviteRoom = localStorage.getItem('uno-invite-room');
-    if (inviteRoom) {
+    if (inviteRoom && !autoJoinAttempted) {
       setRoomCode(inviteRoom);
       setShowJoinInput(true);
+      setAutoJoinAttempted(true);
       localStorage.removeItem('uno-invite-room');
+      
+      // 如果已有昵称且已连接，自动加入房间
+      if (nickname.trim() && isConnected) {
+        onJoinRoom(inviteRoom);
+      }
     }
-  }, []);
+  }, [nickname, isConnected, onJoinRoom, autoJoinAttempted]);
+  
+  // 当用户输入昵称后，如果有房间号，自动加入
+  const prevNicknameRef = useRef(nickname);
+  useEffect(() => {
+    // 昵称从空变为有值，且有房间号，且已连接
+    if (!prevNicknameRef.current.trim() && nickname.trim() && roomCode && isConnected && showJoinInput) {
+      onJoinRoom(roomCode);
+    }
+    prevNicknameRef.current = nickname;
+  }, [nickname, roomCode, isConnected, showJoinInput, onJoinRoom]);
 
   const handleCreateRoom = () => {
     if (!nickname.trim()) {
@@ -86,6 +103,24 @@ export function Home({
             <span className="font-mono truncate max-w-[200px]">{serverUrl}</span>
           </button>
         </div>
+
+        {/* 邀请链接提示 */}
+        {showJoinInput && roomCode && (
+          <div className="mb-4 p-4 bg-blue-500/20 border border-blue-500/50 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-400 mb-2">
+              <Sparkles className="w-5 h-5" />
+              <span className="font-semibold">通过邀请链接加入房间</span>
+            </div>
+            <p className="text-sm text-slate-300">
+              房间号: <span className="font-mono font-bold text-white text-lg tracking-widest">{roomCode}</span>
+            </p>
+            {!nickname.trim() && (
+              <p className="text-sm text-yellow-400 mt-2">
+                👆 请先输入昵称，系统将自动加入房间
+              </p>
+            )}
+          </div>
+        )}
 
         {/* 错误提示 */}
         {error && (
