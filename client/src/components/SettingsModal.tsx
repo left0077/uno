@@ -39,20 +39,30 @@ export function SettingsModal({ isOpen, onClose, serverUrl, onSave, onReset }: S
         testUrl = 'http://' + testUrl;
       }
       
+      // 移除末尾的斜杠
+      testUrl = testUrl.replace(/\/$/, '');
+      
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      console.log('Testing connection to:', `${testUrl}/health`);
       
       const response = await fetch(`${testUrl}/health`, {
+        method: 'GET',
+        mode: 'cors',
         signal: controller.signal
       });
       clearTimeout(timeoutId);
+      
+      console.log('Response:', response.status, response.ok);
       
       if (response.ok) {
         setTestStatus('success');
       } else {
         setTestStatus('error');
       }
-    } catch {
+    } catch (err) {
+      console.error('Connection test failed:', err);
       setTestStatus('error');
     }
   };

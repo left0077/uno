@@ -19,7 +19,18 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling']
 });
 
-app.use(cors());
+// 配置 CORS - 允许 GitHub Pages 和本地开发
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'https://left0077.github.io',
+    'https://left0077.github.io/uno'
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // 根路径
