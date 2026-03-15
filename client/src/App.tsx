@@ -54,17 +54,11 @@ function App() {
   
   const handleRoomCreated = useCallback((room: RoomType) => {
     store.setCurrentRoom(room);
-    localStorage.setItem('uno-player-id', room.players[0].id);
     setPage('room');
   }, [store]);
 
   const handleRoomJoined = useCallback((room: RoomType) => {
     store.setCurrentRoom(room);
-    // 找到自己的player ID
-    const myPlayer = room.players.find(p => p.nickname === store.nickname);
-    if (myPlayer) {
-      localStorage.setItem('uno-player-id', myPlayer.id);
-    }
     setPage('room');
   }, [store]);
 
@@ -117,6 +111,8 @@ function App() {
   
   const socket = useSocket(
     store.serverUrl,
+    store.userId,
+    store.nickname,
     handleRoomCreated,
     handleRoomJoined,
     handleRoomUpdated,
@@ -132,29 +128,22 @@ function App() {
   useEffect(() => {
     // 如果 socket 重新连接成功，且之前有房间状态，尝试重连
     if (socket.isConnected && store.currentRoom && !isReconnecting) {
-      const playerId = localStorage.getItem('uno-player-id');
-      if (playerId && (page === 'room' || page === 'game')) {
+      if (page === 'room' || page === 'game') {
         // 检查自己是否在游戏中且状态为断开
-        const player = store.currentRoom.players.find(p => p.id === playerId);
+        const player = store.currentRoom.players.find(p => p.id === store.userId);
         if (player && !player.isConnected) {
           setIsReconnecting(true);
-          socket.reconnect(store.currentRoom.code, playerId);
+          socket.reconnect(store.currentRoom.code, store.userId);
         }
       }
     }
-  }, [socket.isConnected, store.currentRoom, page, socket, isReconnecting]);
+  }, [socket.isConnected, store.currentRoom, page, socket, isReconnecting, store.userId]);
   
   // 处理重连成功
   useEffect(() => {
-    const handleReconnected = (data: { success: boolean; room: RoomType; gameState?: GameState; newPlayerId?: string }) => {
+    const handleReconnected = (data: { success: boolean; room: RoomType; gameState?: GameState }) => {
       if (data.success) {
         setIsReconnecting(false);
-        
-        // 如果服务器分配了新的 player ID，更新 localStorage
-        if (data.newPlayerId) {
-          localStorage.setItem('uno-player-id', data.newPlayerId);
-          console.log('Player ID updated:', data.newPlayerId);
-        }
         
         store.setCurrentRoom(data.room);
         if (data.gameState) {
@@ -249,8 +238,8 @@ function App() {
     }
   }, [socket, store.currentRoom]);
 
-  // 获取当前玩家ID
-  const currentPlayerId = localStorage.getItem('uno-player-id') || '';
+  // 使用固定的 userId 作为玩家ID
+  const currentPlayerId = store.userId;
   
   // 断线提示组件
   const ConnectionStatus = () => {
@@ -261,10 +250,9 @@ function App() {
           {!isReconnecting && (
             <button 
               onClick={() => {
-                const playerId = localStorage.getItem('uno-player-id');
-                if (playerId && store.currentRoom) {
+                if (store.currentRoom) {
                   setIsReconnecting(true);
-                  socket.reconnect(store.currentRoom.code, playerId);
+                  socket.reconnect(store.currentRoom.code, store.userId);
                 }
               }}
               className="ml-2 underline hover:text-yellow-700"

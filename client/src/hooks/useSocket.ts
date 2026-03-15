@@ -28,6 +28,8 @@ interface UseSocketReturn extends SocketState {
 
 export function useSocket(
   serverUrl: string,
+  userId: string,
+  nickname: string,
   onRoomCreated?: (room: Room) => void,
   onRoomJoined?: (room: Room) => void,
   onRoomUpdated?: (room: Room) => void,
@@ -44,6 +46,9 @@ export function useSocket(
     socketId: null,
     error: null
   });
+  
+  // 保存 userId 用于重连
+  const userIdRef = useRef(userId);
 
   // 初始化Socket连接
   useEffect(() => {
@@ -65,6 +70,8 @@ export function useSocket(
         socketId: socket.id || null,
         error: null
       });
+      // 发送认证信息
+      socket.emit('auth', { userId: userIdRef.current, nickname });
     });
 
     socket.on('disconnect', (reason) => {
@@ -156,11 +163,11 @@ export function useSocket(
 
   // 房间操作
   const createRoom = useCallback((nickname: string) => {
-    socketRef.current?.emit('room:create', { nickname });
+    socketRef.current?.emit('room:create', { nickname, userId: userIdRef.current });
   }, []);
 
   const joinRoom = useCallback((roomCode: string, nickname: string) => {
-    socketRef.current?.emit('room:join', { roomCode, nickname });
+    socketRef.current?.emit('room:join', { roomCode, nickname, userId: userIdRef.current });
   }, []);
 
   const leaveRoom = useCallback(() => {
@@ -205,8 +212,9 @@ export function useSocket(
     socketRef.current?.emit('room:updateSettings', { roomCode, settings });
   }, []);
 
-  const reconnect = useCallback((roomCode: string, playerId: string) => {
-    socketRef.current?.emit('player:reconnect', { roomCode, playerId });
+  const reconnect = useCallback((roomCode: string, _playerId: string) => {
+    // 使用固定的 userId 而不是 playerId
+    socketRef.current?.emit('player:reconnect', { roomCode, userId: userIdRef.current });
   }, []);
 
   const sendMessage = useCallback((roomCode: string, type: 'emoji' | 'text', content: string) => {

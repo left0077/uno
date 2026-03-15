@@ -1,12 +1,24 @@
 import { useState, useCallback } from 'react';
 import type { Room, Player, GameState, Card } from '../../../shared/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // 默认服务器地址 - Render 部署的后端
 const DEFAULT_SERVER_URL = 'https://uno-server-jbbr.onrender.com';
 
+// 获取或生成用户ID
+const getOrCreateUserId = (): string => {
+  let userId = localStorage.getItem('uno-user-id');
+  if (!userId) {
+    userId = uuidv4();
+    localStorage.setItem('uno-user-id', userId);
+  }
+  return userId;
+};
+
 interface GameStore {
   // 玩家信息
   currentPlayer: Player | null;
+  userId: string;
   nickname: string;
   setNickname: (name: string) => void;
   
@@ -50,6 +62,8 @@ interface GameStore {
 }
 
 export function useGameStore(): GameStore {
+  const [userId] = useState<string>(getOrCreateUserId);
+  
   const [nickname, setNicknameState] = useState<string>(() => {
     return localStorage.getItem('uno-nickname') || '';
   });
@@ -95,14 +109,6 @@ export function useGameStore(): GameStore {
     setCurrentRoomState(room);
     if (room) {
       localStorage.setItem('uno-current-room', JSON.stringify(room));
-      // 更新当前玩家信息
-      const currentPlayerId = localStorage.getItem('uno-player-id');
-      if (currentPlayerId) {
-        const player = room.players.find(p => p.id === currentPlayerId);
-        if (player) {
-          localStorage.setItem('uno-player-id', player.id);
-        }
-      }
     } else {
       localStorage.removeItem('uno-current-room');
       localStorage.removeItem('uno-game-state');
@@ -134,9 +140,8 @@ export function useGameStore(): GameStore {
 
   const getCurrentPlayerInRoom = useCallback(() => {
     if (!currentRoom) return undefined;
-    const currentPlayerId = localStorage.getItem('uno-player-id');
-    return currentRoom.players.find(p => p.id === currentPlayerId);
-  }, [currentRoom]);
+    return currentRoom.players.find(p => p.id === userId);
+  }, [currentRoom, userId]);
 
   const getPlayableCards = useCallback(() => {
     const player = getCurrentPlayerInRoom();
@@ -164,9 +169,8 @@ export function useGameStore(): GameStore {
 
   const isMyTurn = useCallback(() => {
     if (!gameState) return false;
-    const currentPlayerId = localStorage.getItem('uno-player-id');
-    return gameState.currentPlayerId === currentPlayerId;
-  }, [gameState]);
+    return gameState.currentPlayerId === userId;
+  }, [gameState, userId]);
 
   const reset = useCallback(() => {
     setCurrentRoomState(null);
@@ -178,6 +182,7 @@ export function useGameStore(): GameStore {
 
   return {
     currentPlayer: getCurrentPlayerInRoom() || null,
+    userId,
     nickname,
     setNickname,
     serverUrl,

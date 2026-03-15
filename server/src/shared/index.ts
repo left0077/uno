@@ -121,6 +121,12 @@ export enum SocketEvents {
   ERROR = 'error',
 }
 
+// 用户会话信息
+export interface UserSession {
+  userId: string;  // 客户端生成的固定 UUID
+  nickname: string;
+}
+
 // 错误类型
 export interface SocketError {
   code: string;
