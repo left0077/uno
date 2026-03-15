@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -23,7 +23,7 @@ app.use(cors());
 app.use(express.json());
 
 // 健康检查
-app.get('/health', (req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -32,7 +32,7 @@ app.get('/health', (req, res) => {
 });
 
 // 获取房间信息
-app.get('/api/room/:code', (req, res) => {
+app.get('/api/room/:code', (req: Request, res: Response) => {
   const room = roomManager.getRoom(req.params.code);
   if (!room) {
     return res.status(404).json({ error: 'Room not found' });
