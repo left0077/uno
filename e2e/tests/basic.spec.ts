@@ -11,7 +11,7 @@ test.setTimeout(60000);
 test.describe('基础功能测试', () => {
   
   test('首页加载正常', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+    await page.goto('/', { timeout: 30000 });
     
     // 等待页面加载
     await page.waitForLoadState('networkidle');
@@ -27,7 +27,7 @@ test.describe('基础功能测试', () => {
   });
 
   test('昵称保存到 localStorage', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+    await page.goto('/', { timeout: 30000 });
     await page.waitForLoadState('networkidle');
     
     const nicknameInput = page.getByPlaceholder(/昵称/i).first();
@@ -47,7 +47,7 @@ test.describe('基础功能测试', () => {
   });
 
   test('创建房间流程', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+    await page.goto('/', { timeout: 30000 });
     await page.waitForLoadState('networkidle');
     
     // 输入昵称
@@ -77,7 +77,7 @@ test.describe('基础功能测试', () => {
 
   test('邀请链接自动填充房间号', async ({ page }) => {
     // 直接访问带房间号的URL
-    await page.goto('https://left0077.github.io/uno/?room=1234', { timeout: 30000 });
+    await page.goto('/?room=1234', { timeout: 30000 });
     await page.waitForLoadState('networkidle');
     
     // 等待页面加载
@@ -109,7 +109,7 @@ test.describe('多人交互测试', () => {
     
     try {
       // 玩家1创建房间
-      await page1.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+      await page1.goto('/', { timeout: 30000 });
       await page1.waitForLoadState('networkidle');
       await page1.getByPlaceholder(/昵称/i).first().fill('房主');
       await page1.getByRole('button', { name: /创建房间/i }).click();
@@ -124,7 +124,7 @@ test.describe('多人交互测试', () => {
       console.log('房间号:', roomCode);
       
       // 玩家2加入房间
-      await page2.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+      await page2.goto('/', { timeout: 30000 });
       await page2.waitForLoadState('networkidle');
       await page2.getByPlaceholder(/昵称/i).first().fill('玩家2');
       await page2.getByRole('button', { name: /加入房间/i }).click();
@@ -163,7 +163,7 @@ test.describe('多人交互测试', () => {
   });
 
   test('房主可以添加AI', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+    await page.goto('/', { timeout: 30000 });
     await page.waitForLoadState('networkidle');
     
     // 输入昵称并创建房间
@@ -187,7 +187,7 @@ test.describe('多人交互测试', () => {
   });
 
   test('房间设置功能', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+    await page.goto('/', { timeout: 30000 });
     await page.waitForLoadState('networkidle');
     
     // 创建房间
@@ -217,7 +217,7 @@ test.describe('多人交互测试', () => {
 test.describe('连接状态测试', () => {
   
   test('显示连接状态', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+    await page.goto('/', { timeout: 30000 });
     await page.waitForLoadState('networkidle');
     
     // 检查连接状态（可能显示已连接、连接中或断开）
@@ -233,7 +233,7 @@ test.describe('连接状态测试', () => {
   });
 
   test('网络断开后显示重连状态', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/', { timeout: 30000 });
+    await page.goto('/', { timeout: 30000 });
     await page.waitForLoadState('networkidle');
     await page.getByPlaceholder(/昵称/i).first().fill('测试玩家');
     await page.getByRole('button', { name: /创建房间/i }).click();

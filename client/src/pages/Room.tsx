@@ -306,6 +306,40 @@ export function Room({
                     }`} />
                   </button>
                 </label>
+
+                {/* 游戏模式 */}
+                <div className={`${isHost ? '' : 'opacity-70'}`}>
+                  <div className="mb-2">
+                    <span className="text-sm text-slate-400">游戏模式</span>
+                    <p className="text-xs text-slate-600">
+                      {room.settings.mode === 'out' ? '🔥 Out模式：超出上限即淘汰！' : '标准模式：经典UNO规则'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => isHost && onUpdateSettings?.({ mode: 'standard' })}
+                      disabled={!isHost}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        room.settings.mode === 'standard' || !room.settings.mode
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                      } ${!isHost && 'cursor-not-allowed'}`}
+                    >
+                      标准
+                    </button>
+                    <button
+                      onClick={() => isHost && onUpdateSettings?.({ mode: 'out' })}
+                      disabled={!isHost}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        room.settings.mode === 'out'
+                          ? 'bg-red-600 text-white'
+                          : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                      } ${!isHost && 'cursor-not-allowed'}`}
+                    >
+                      🔥 Out
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -39,6 +39,7 @@ export class RoomManager {
         allowMultipleCards: true,
         allowJumpIn: true,
         scoringMode: true,
+        mode: 'standard', // 默认标准模式
         ...settings
       }
     };

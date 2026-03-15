@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 test.describe('游戏流程测试', () => {
   
   test('开始游戏后能看到手牌', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -36,7 +36,7 @@ test.describe('游戏流程测试', () => {
   });
 
   test('当前玩家回合可以摸牌', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -72,7 +72,7 @@ test.describe('游戏流程测试', () => {
   });
 
   test('出牌后切换到下一回合', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并添加AI开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -113,7 +113,7 @@ test.describe('游戏流程测试', () => {
   });
 
   test('显示当前颜色指示', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -141,7 +141,7 @@ test.describe('游戏流程测试', () => {
   });
 
   test('显示倒计时', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -167,7 +167,7 @@ test.describe('游戏流程测试', () => {
 test.describe('连打规则测试', () => {
   
   test('+2牌显示累积惩罚提示', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -200,7 +200,7 @@ test.describe('连打规则测试', () => {
 test.describe('UNO喊话测试', () => {
   
   test('剩1张牌时显示UNO按钮', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -230,7 +230,7 @@ test.describe('UNO喊话测试', () => {
 test.describe('排名模式测试', () => {
   
   test('游戏开始后显示排名区域', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');

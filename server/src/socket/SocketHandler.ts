@@ -219,12 +219,11 @@ export function setupSocketHandlers(io: Server): void {
       }
       
       // 创建游戏实例
-      const game = new UnoGame(
-        room,
-        (state) => {
+      const game = new UnoGame(room, {
+        onStateChange: (state) => {
           io.to(data.roomCode).emit(SocketEvents.GAME_STATE, state);
         },
-        (winner) => {
+        onGameEnd: (winner) => {
           // 游戏结束处理
           const rankings = room.gameState?.rankings || [winner.id];
           const rankedPlayers = rankings.map((playerId, index) => {
@@ -250,8 +249,7 @@ export function setupSocketHandlers(io: Server): void {
           io.to(data.roomCode).emit(SocketEvents.ROOM_UPDATED, room);
           console.log(`Game ended in room: ${data.roomCode}, reset to waiting`);
         },
-        // AI 发送消息回调
-        (playerId, type, content) => {
+        onSendMessage: (playerId, type, content) => {
           const player = room.players.find(p => p.id === playerId);
           if (player) {
             io.to(data.roomCode).emit(SocketEvents.RECEIVE_MESSAGE, {
@@ -263,7 +261,7 @@ export function setupSocketHandlers(io: Server): void {
             });
           }
         }
-      );
+      });
       
       activeGames.set(data.roomCode, game);
       io.to(data.roomCode).emit(SocketEvents.GAME_START, { success: true, gameState: game.getGameState() });
@@ -279,7 +277,14 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
       
-      const success = game.playCard(userId, data.cardId, data.chosenColor);
+      const action = {
+        type: 'play' as const,
+        playerId: userId,
+        cardIds: [data.cardId],
+        color: data.chosenColor,
+        timestamp: Date.now()
+      };
+      const success = game.handleAction(action, userId);
       if (!success) {
         socket.emit(SocketEvents.ERROR, { code: 'INVALID_PLAY', message: '无效的出牌' });
       }
@@ -294,17 +299,12 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
       
-      // 检查是否是当前玩家
-      const currentPlayer = game.getCurrentPlayer();
-      if (!currentPlayer || currentPlayer.id !== userId) {
-        socket.emit(SocketEvents.ERROR, { code: 'NOT_YOUR_TURN', message: '不是你的回合' });
-        return;
-      }
-      
-      // 如果有连打惩罚，摸累积的牌；否则摸1张
-      const gameState = game.getGameState();
-      const drawCount = gameState.pendingDraw && gameState.pendingDraw > 0 ? gameState.pendingDraw : 1;
-      game.drawCards(userId, drawCount);
+      const action = {
+        type: 'draw' as const,
+        playerId: userId,
+        timestamp: Date.now()
+      };
+      game.handleAction(action, userId);
     });
     
     // 喊UNO
@@ -313,7 +313,12 @@ export function setupSocketHandlers(io: Server): void {
       const userId = socketUserMap.get(socket.id) || socket.id;
       if (!game) return;
       
-      const success = game.callUno(userId);
+      const action = {
+        type: 'uno' as const,
+        playerId: userId,
+        timestamp: Date.now()
+      };
+      const success = game.handleAction(action, userId);
       if (success) {
         io.to(data.roomCode).emit('game:unoCalled', { playerId: userId });
       }
@@ -328,13 +333,18 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
       
-      const result = game.challengeUno(userId, data.targetId);
-      // 无论成功失败，都广播结果给所有玩家
+      const action = {
+        type: 'challenge' as const,
+        playerId: userId,
+        targetId: data.targetId,
+        timestamp: Date.now()
+      };
+      const success = game.handleAction(action, userId);
+      // 广播结果给所有玩家
       io.to(data.roomCode).emit('game:challengeResult', { 
-        success: result.success,
+        success,
         challengerId: userId, 
-        targetId: data.targetId, 
-        message: result.message 
+        targetId: data.targetId
       });
     });
     
@@ -347,7 +357,13 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
       
-      const success = game.jumpIn(userId, data.cardId);
+      const action = {
+        type: 'jumpIn' as const,
+        playerId: userId,
+        cardIds: [data.cardId],
+        timestamp: Date.now()
+      };
+      const success = game.handleAction(action, userId);
       if (!success) {
         socket.emit(SocketEvents.ERROR, { code: 'INVALID_JUMP_IN', message: '无法抢牌出' });
       } else {

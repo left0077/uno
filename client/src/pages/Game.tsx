@@ -41,10 +41,33 @@ export function Game({
   const [showUnoButton, setShowUnoButton] = useState(false);
   const [skipNotification, setSkipNotification] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
   const lastSkippedIdRef = useRef<string | null>(null); // 防止重复显示跳过提示
-  const [isHosting, setIsHosting] = useState(currentPlayer?.isAI || false);
-
+  
+  // Out倒计时
+  const [outCountdown, setRingCountdown] = useState<number>(0);
+  
   const currentPlayer = gameState.players?.find(p => p.id === currentPlayerId) || room.players.find(p => p.id === currentPlayerId);
   const isMyTurn = gameState.currentPlayerId === currentPlayerId;
+  
+  // 托管状态
+  const [isHosting, setIsHosting] = useState(currentPlayer?.isAI || false);
+  
+  // 更新Out倒计时
+  useEffect(() => {
+    if (!gameState.outState || gameState.outState.phase >= 3) {
+      setRingCountdown(0);
+      return;
+    }
+    
+    const updateCountdown = () => {
+      const now = Date.now();
+      const remaining = Math.max(0, gameState.outState!.nextRingAt - now);
+      setRingCountdown(remaining);
+    };
+    
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [gameState.outState]);
   
   // 获取其他玩家（按顺序）- 优先从 gameState 获取
   const allPlayers = gameState.players || room.players;
@@ -56,7 +79,8 @@ export function Game({
       ordered.push(allPlayers[idx]);
     }
     return ordered;
-  }, [allPlayers, currentPlayerId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.players, room.players, currentPlayerId]);
 
   // 获取顶部卡牌
   const topCard = gameState.discardPile[gameState.discardPile.length - 1];
@@ -231,6 +255,38 @@ export function Game({
             <Clock className="w-4 h-4" />
             {formatTime(gameState.turnTimer)}
           </div>
+          
+          {/* Out倒计时 */}
+          {gameState.outState && gameState.outState.phase < 3 && outCountdown > 0 && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold ${
+              outCountdown <= 30000 
+                ? 'bg-red-600/30 text-red-400 border border-red-500/50 animate-pulse' 
+                : outCountdown <= 60000 
+                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                : 'bg-slate-800 text-slate-300'
+            }`}>
+              <span className="text-xs">🔥</span>
+              <span className="text-sm font-mono">{formatTime(Math.floor(outCountdown / 1000))}</span>
+            </div>
+          )}
+          
+          {/* Out阶段指示 */}
+          {gameState.outState && gameState.outState.phase > 0 && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold ${
+              gameState.outState.phase === 1 
+                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                : gameState.outState.phase === 2 
+                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                : 'bg-purple-600/30 text-purple-400 border border-purple-500/50 animate-pulse'
+            }`}>
+              <span className="text-xs">
+                {gameState.outState.phase === 1 ? '🔥 Out I - 上限15张' : 
+                 gameState.outState.phase === 2 ? '🔥🔥 Out II - 上限8张' : 
+                 '💀 终极圈 - 上限3张'}
+              </span>
+              <span className="text-xs text-red-400 font-bold">超出即淘汰！</span>
+            </div>
+          )}
 
           {/* 方向指示 - 更明显的版本 */}
           <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
@@ -270,8 +326,9 @@ export function Game({
       {/* 其他玩家区域 - 支持横向滚动 */}
       <div className="flex justify-start items-center gap-3 py-4 px-4 overflow-x-auto scrollbar-hide">
         {otherPlayers.map((player) => {
-          const canChallenge = player.cardCount === 1 && !player.hasCalledUno;
-          const isFinished = player.cardCount === 0; // 已出完牌
+          const canChallenge = player.cardCount === 1 && !player.hasCalledUno && !player.eliminated;
+          const isFinished = player.cardCount === 0 && !player.eliminated; // 已出完牌
+          const isEliminated = player.eliminated; // 被淘汰
           // 获取该玩家最新的表情消息
           const playerEmoji = chatMessages
             .filter(msg => msg.playerId === player.id)
@@ -282,16 +339,16 @@ export function Game({
               onClick={() => canChallenge && onChallengeUno?.(player.id)}
               className="relative flex flex-col items-center"
             >
-              {/* 表情显示 - 在头像上方 */}
+              {/* 表情显示 - 在头像右侧 */}
               <AnimatePresence>
                 {playerEmoji && (
                   <motion.div
                     key={playerEmoji.timestamp}
-                    initial={{ opacity: 0, y: 10, scale: 0.5 }}
-                    animate={{ opacity: 1, y: -8, scale: 1.2 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                    initial={{ opacity: 0, x: -10, scale: 0.5 }}
+                    animate={{ opacity: 1, x: 0, scale: 1.2 }}
+                    exit={{ opacity: 0, x: 10, scale: 0.8 }}
                     transition={{ duration: 0.3 }}
-                    className="absolute -top-8 z-20"
+                    className="absolute left-14 top-1/2 -translate-y-1/2 z-30"
                   >
                     <span className="text-3xl drop-shadow-lg filter">{playerEmoji.content}</span>
                   </motion.div>
@@ -300,31 +357,31 @@ export function Game({
               
               <motion.div 
                 className={`flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all flex-shrink-0 ${
-                  isFinished
-                    ? 'bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/20'
-                    : player.id === gameState.currentPlayerId
-                      ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/20'
-                      : 'bg-slate-800/50 border-slate-700/50'
+                  isEliminated
+                    ? 'bg-gray-800/50 border-gray-600 opacity-60'
+                    : isFinished
+                      ? 'bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/20'
+                      : player.id === gameState.currentPlayerId
+                        ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/20 animate-pulse'
+                        : 'bg-slate-800/50 border-slate-700/50'
                 } ${canChallenge ? 'border-red-500 ring-2 ring-red-500/50 cursor-pointer hover:bg-red-900/20' : ''}`}
-                animate={player.id === gameState.currentPlayerId && !isFinished ? {
-                  scale: [1, 1.05, 1],
-                } : {}}
-                transition={{ duration: 1, repeat: Infinity }}
-                title={canChallenge ? '点击质疑！' : isFinished ? '已获胜！' : ''}
+                title={canChallenge ? '点击质疑！' : isFinished ? '已获胜！' : isEliminated ? '已淘汰' : ''}
               >
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
-                  isFinished
-                    ? 'bg-yellow-500/30 text-yellow-400'
-                    : player.isAI
-                      ? 'bg-purple-600/30 text-purple-400'
-                      : 'bg-slate-700'
+                  isEliminated
+                    ? 'bg-gray-700 text-gray-500'
+                    : isFinished
+                      ? 'bg-yellow-500/30 text-yellow-400'
+                      : player.isAI
+                        ? 'bg-purple-600/30 text-purple-400'
+                        : 'bg-slate-700'
                 }`}>
-                  {isFinished ? '👑' : player.isAI ? '🤖' : player.nickname.charAt(0).toUpperCase()}
+                  {isEliminated ? '💀' : isFinished ? '👑' : player.isAI ? '🤖' : player.nickname.charAt(0).toUpperCase()}
                 </div>
                 <div className="text-center">
-                  <div className="text-xs font-medium truncate max-w-[70px] sm:max-w-[80px]">{player.nickname}</div>
-                  <div className={`text-xs ${canChallenge ? 'text-red-400 font-bold animate-pulse' : isFinished ? 'text-yellow-400 font-bold' : 'text-slate-400'}`}>
-                    {isFinished ? '✨ 获胜' : `${player.cardCount}张${player.cardCount === 1 && player.hasCalledUno && ' ✓UNO'}`}
+                  <div className={`text-xs font-medium truncate max-w-[70px] sm:max-w-[80px] ${isEliminated ? 'text-gray-500' : ''}`}>{player.nickname}</div>
+                  <div className={`text-xs ${canChallenge ? 'text-red-400 font-bold animate-pulse' : isFinished ? 'text-yellow-400 font-bold' : isEliminated ? 'text-gray-500' : 'text-slate-400'}`}>
+                    {isEliminated ? '💀 淘汰' : isFinished ? '✨ 获胜' : `${player.cardCount}张${player.cardCount === 1 && player.hasCalledUno ? ' ✓UNO' : ''}`}
                   </div>
                 </div>
                 {player.id === gameState.currentPlayerId && !isFinished && (
@@ -422,7 +479,14 @@ export function Game({
 
       {/* 手牌区域 */}
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-700/50">
-        {/* 当前玩家表情显示 */}
+        {/* Out警告 - 手牌接近上限时显示 */}
+        {gameState.outState && gameState.outState.phase > 0 && currentPlayer && !currentPlayer.eliminated && currentPlayer.cards.length >= gameState.outState.maxCards && (
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-2 bg-red-600 text-white font-bold rounded-full shadow-lg shadow-red-600/50 animate-pulse z-30">
+            ⚠️ 手牌{currentPlayer.cards.length}张！上限{gameState.outState.maxCards}张，再摸牌将被淘汰！
+          </div>
+        )}
+        
+        {/* 当前玩家表情显示 - 在手牌中央上方 */}
         {(() => {
           const myEmoji = chatMessages
             .filter(msg => msg.playerId === currentPlayerId)
@@ -436,7 +500,7 @@ export function Game({
                   animate={{ opacity: 1, y: 0, scale: 1.5 }}
                   exit={{ opacity: 0, y: -20, scale: 0.8 }}
                   transition={{ duration: 0.3 }}
-                  className="absolute -top-12 left-4 z-20"
+                  className="absolute -top-16 left-1/2 -translate-x-1/2 z-30"
                 >
                   <span className="text-4xl drop-shadow-lg filter">{myEmoji.content}</span>
                 </motion.div>
@@ -449,7 +513,7 @@ export function Game({
         <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50">
           {/* 更多 Emoji - 横向滚动 */}
           <div className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
-            {['👍', '👎', '🔥', '😂', '😭', '😡', '❤️', '🎉', '🤮', '💩', '🤔', '🙄', '🤡', '👻', '🤝', '✨'].map((emoji) => (
+            {['😎', '🔥', '🤡', '👻', '💩', '🤮', '🙄', '🤔', '😭', '😡', '😂', '🎲', '🐸', '🍌', '⚡', '💀'].map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => onSendEmoji?.(emoji)}
@@ -460,19 +524,6 @@ export function Game({
               </button>
             ))}
           </div>
-          
-          {/* 托管按钮 */}
-          <button
-            onClick={onToggleHost}
-            className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-              currentPlayer?.aiType === 'host'
-                ? 'bg-yellow-600 text-yellow-100 border border-yellow-500'
-                : 'bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600'
-            }`}
-            title={currentPlayer?.aiType === 'host' ? '取消托管' : '开启托管'}
-          >
-            {currentPlayer?.aiType === 'host' ? '🤖 托管中' : '🎮 托管'}
-          </button>
           
           {/* 手牌数量 */}
           <div className="text-sm text-slate-400 flex-shrink-0 ml-2">

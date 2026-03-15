@@ -14,10 +14,13 @@ export class AIPlayer {
     
     // 连打规则处理：如果有待摸牌惩罚
     if (gameState.pendingDraw && gameState.pendingDraw > 0 && gameState.pendingDrawType) {
-      // 只能出相同类型的+牌来继续连打
+      // 只能出相同类型的+牌来继续连打，或者出+8万能牌
+      const pendingType = gameState.pendingDrawType;
       const stackableCards = player.cards.filter(card => {
-        if (gameState.pendingDrawType === 'draw2' && card.type === 'draw2') return true;
-        if (gameState.pendingDrawType === 'draw4' && card.type === 'draw4') return true;
+        // 同类型可叠加
+        if (card.type === pendingType) return true;
+        // +8万能牌可叠加任何
+        if (card.type === 'draw8') return true;
         return false;
       });
       
@@ -103,8 +106,8 @@ export class AIPlayer {
     player: Player,
     gameState: GameState
   ): { type: 'play'; cardId: string; chosenColor?: string } {
-    // 按优先级排序：功能牌 > 万能牌 > 数字牌
-    const priorityOrder = ['draw2', 'skip', 'reverse', 'draw4', 'wild', 'number'];
+    // 按优先级排序：惩罚牌 > 功能牌 > 万能牌 > 数字牌
+    const priorityOrder = ['draw8', 'draw5', 'draw3', 'draw2', 'skip', 'reverse', 'draw4', 'wild', 'number'];
     
     playableCards.sort((a, b) => {
       const aIndex = priorityOrder.indexOf(a.type);
@@ -168,7 +171,7 @@ export class AIPlayer {
     // 如果有对手快赢了，优先使用控场牌
     if (hasOpponentWithFewCards) {
       const controlCards = playableCards.filter(c => 
-        ['skip', 'draw2', 'draw4', 'reverse'].includes(c.type)
+        ['skip', 'draw2', 'draw3', 'draw4', 'draw5', 'draw8', 'reverse'].includes(c.type)
       );
       
       if (controlCards.length > 0) {
@@ -187,7 +190,8 @@ export class AIPlayer {
   
   // 选择颜色（用于万能牌）
   private static chooseColor(card: Card, handCards?: Card[]): string {
-    if (card.type !== 'wild' && card.type !== 'draw4') {
+    // 普通有颜色牌直接返回其颜色
+    if (card.type !== 'wild' && card.type !== 'draw4' && card.type !== 'draw8') {
       return card.color;
     }
     

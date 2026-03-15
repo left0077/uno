@@ -71,10 +71,16 @@ export function Card({
         return <span className={`font-bold ${classes.text}`}>↩️</span>;
       case 'draw2':
         return <span className={`font-bold ${classes.text}`}>+2</span>;
-      case 'wild':
-        return <span className={`font-bold ${classes.text}`}>🌈</span>;
+      case 'draw3':
+        return <span className={`font-bold ${classes.text}`}>+3</span>;
       case 'draw4':
         return <span className={`font-bold ${classes.text}`}>+4</span>;
+      case 'draw5':
+        return <span className={`font-bold ${classes.text}`}>+5</span>;
+      case 'draw8':
+        return <span className={`font-bold ${classes.text}`}>+8</span>;
+      case 'wild':
+        return <span className={`font-bold ${classes.text}`}>🌈</span>;
       default:
         return <span>?</span>;
     }
@@ -124,8 +130,11 @@ function getShortLabel(type: string): string {
     skip: 'skip',
     reverse: 'rev',
     draw2: '+2',
-    wild: 'wild',
-    draw4: '+4'
+    draw3: '+3',
+    draw4: '+4',
+    draw5: '+5',
+    draw8: '+8',
+    wild: 'wild'
   };
   return labels[type] || type;
 }

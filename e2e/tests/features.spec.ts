@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Emoji 聊天测试', () => {
   
   test('游戏界面显示 Emoji 按钮', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
@@ -41,7 +41,7 @@ test.describe('Emoji 聊天测试', () => {
     
     try {
       // 玩家1创建房间
-      await page1.goto('https://left0077.github.io/uno/');
+      await page1.goto('/');
       await page1.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家1');
       await page1.getByText(/创建房间/i).click();
       await expect(page1.getByText(/房间|Room/i)).toBeVisible({ timeout: 15000 });
@@ -53,7 +53,7 @@ test.describe('Emoji 聊天测试', () => {
       const roomCode = roomCodeMatch![1];
       
       // 玩家2加入
-      await page2.goto('https://left0077.github.io/uno/');
+      await page2.goto('/');
       await page2.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家2');
       await page2.getByText(/加入房间/i).click();
       await page2.getByPlaceholder(/\d{4}|房间号/i).fill(roomCode);
@@ -96,7 +96,7 @@ test.describe('Emoji 聊天测试', () => {
 test.describe('邀请链接测试', () => {
   
   test('创建房间后 URL 包含房间号', async ({ page, context }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 输入昵称
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('房主');
@@ -126,7 +126,7 @@ test.describe('邀请链接测试', () => {
     
     try {
       // 玩家1创建房间
-      await page1.goto('https://left0077.github.io/uno/');
+      await page1.goto('/');
       await page1.getByPlaceholder(/请输入昵称|昵称/i).fill('房主');
       await page1.getByText(/创建房间/i).click();
       await expect(page1.getByText(/房间|Room/i)).toBeVisible({ timeout: 15000 });
@@ -140,7 +140,7 @@ test.describe('邀请链接测试', () => {
       console.log('房间号:', roomCode);
       
       // 玩家2通过带房间号的URL访问
-      await page2.goto(`https://left0077.github.io/uno/?room=${roomCode}`);
+      await page2.goto(`/?room=${roomCode}`);
       await page2.waitForTimeout(2000);
       
       // 输入昵称
@@ -172,7 +172,7 @@ test.describe('邀请链接测试', () => {
 test.describe('房间设置测试', () => {
   
   test('房主可以看到房间设置', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('房主');
@@ -204,7 +204,7 @@ test.describe('房间设置测试', () => {
     
     try {
       // 玩家1创建房间
-      await page1.goto('https://left0077.github.io/uno/');
+      await page1.goto('/');
       await page1.getByPlaceholder(/请输入昵称|昵称/i).fill('房主');
       await page1.getByText(/创建房间/i).click();
       await expect(page1.getByText(/房间|Room/i)).toBeVisible({ timeout: 15000 });
@@ -216,7 +216,7 @@ test.describe('房间设置测试', () => {
       const roomCode = roomCodeMatch![1];
       
       // 玩家2加入
-      await page2.goto('https://left0077.github.io/uno/');
+      await page2.goto('/');
       await page2.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家2');
       await page2.getByText(/加入房间/i).click();
       await page2.getByPlaceholder(/\d{4}|房间号/i).fill(roomCode);
@@ -239,7 +239,7 @@ test.describe('房间设置测试', () => {
 test.describe('游戏结束测试', () => {
   
   test('游戏结束后显示结果', async ({ page }) => {
-    await page.goto('https://left0077.github.io/uno/');
+    await page.goto('/');
     
     // 创建房间并开始游戏
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');

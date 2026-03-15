@@ -4,6 +4,9 @@
   "description": "Uno Online E2E Tests",
   "scripts": {
     "test": "playwright test",
+    "test:local": "playwright test --config=playwright.config.local.ts",
+    "test:local:headed": "playwright test --config=playwright.config.local.ts --headed",
+    "test:local:ui": "playwright test --config=playwright.config.local.ts --ui",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
     "test:headed": "playwright test --headed",
@@ -11,7 +14,14 @@
     "test:reconnect": "playwright test reconnect.spec.ts",
     "test:gameplay": "playwright test gameplay.spec.ts",
     "test:features": "playwright test features.spec.ts",
+    "test:out": "playwright test --config=playwright.config.local.ts out-mode.spec.ts",
+    "test:hosting": "playwright test --config=playwright.config.local.ts hosting.spec.ts",
+    "test:mobile": "playwright test --config=playwright.config.local.ts mobile-ui.spec.ts",
+    "test:newcards": "playwright test --config=playwright.config.local.ts new-cards.spec.ts",
+    "test:gamemode": "playwright test --config=playwright.config.local.ts game-mode.spec.ts",
+    "test:all:local": "playwright test --config=playwright.config.local.ts",
     "report": "playwright show-report",
+    "report:local": "playwright show-report playwright-report-local",
     "report:open": "playwright show-report playwright-report"
   },
   "devDependencies": {

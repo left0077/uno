@@ -13,12 +13,13 @@ export interface Player {
   isReady: boolean;
   disconnectedAt?: number;
   hasCalledUno?: boolean; // 是否已喊UNO
+  eliminated?: boolean; // 是否被淘汰（缩圈模式）
 }
 
 // 卡牌类型
 export interface Card {
   id: string;
-  type: 'number' | 'skip' | 'reverse' | 'draw2' | 'wild' | 'draw4';
+  type: 'number' | 'skip' | 'reverse' | 'draw2' | 'wild' | 'draw4' | 'draw3' | 'draw5' | 'draw8';
   color: 'red' | 'yellow' | 'green' | 'blue' | 'wild';
   value: number | string;
 }
@@ -36,12 +37,24 @@ export interface Room {
   settings: RoomSettings;
 }
 
+// 游戏模式类型
+export type GameMode = 'standard' | 'out';
+
 // 房间设置
 export interface RoomSettings {
   allowStacking: boolean;
   allowMultipleCards: boolean;
   allowJumpIn: boolean;
   scoringMode: boolean;
+  // 游戏模式
+  mode: GameMode;
+}
+
+// Out模式状态（3阶段机制）
+export interface OutState {
+  phase: 0 | 1 | 2 | 3; // 0=正常, 1-3=Out阶段
+  maxCards: number; // 当前手牌上限（超出淘汰）
+  nextOutAt: number; // 下次Out时间戳
 }
 
 // 游戏状态
@@ -57,10 +70,13 @@ export interface GameState {
   winner?: string;
   players: Player[]; // 包含每个玩家的手牌信息
   pendingDraw?: number; // 连打累积的摸牌数
-  pendingDrawType?: 'draw2' | 'draw4'; // 连打的类型（只能叠加同类型）
+  pendingDrawType?: 'draw2' | 'draw3' | 'draw4' | 'draw5' | 'draw8'; // 连打的类型（同类型可叠加，draw8万能可叠加任何）
   rankings?: string[]; // 出完牌的玩家排名（按先后顺序）
   isRoundEnded?: boolean; // 本轮是否已结束
   skippedPlayerId?: string; // 被跳过的玩家ID（用于UI提示）
+  ringState?: RingState; // 缩圈状态
+  gameStartTime?: number; // 游戏开始时间戳（缩圈模式需要）
+  humanPlayerCount?: number; // 开局真人数量（缩圈模式需要）
 }
 
 // 游戏动作

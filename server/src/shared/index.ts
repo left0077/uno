@@ -13,12 +13,13 @@ export interface Player {
   isReady: boolean;
   disconnectedAt?: number;
   hasCalledUno?: boolean; // 是否已喊UNO
+  eliminated?: boolean; // 是否被淘汰（缩圈模式）
 }
 
 // 卡牌类型
 export interface Card {
   id: string;
-  type: 'number' | 'skip' | 'reverse' | 'draw2' | 'wild' | 'draw4';
+  type: 'number' | 'skip' | 'reverse' | 'draw2' | 'wild' | 'draw4' | 'draw3' | 'draw5' | 'draw8';
   color: 'red' | 'yellow' | 'green' | 'blue' | 'wild';
   value: number | string;
 }
@@ -36,12 +37,24 @@ export interface Room {
   settings: RoomSettings;
 }
 
+// 游戏模式类型
+export type GameMode = 'standard' | 'out';
+
 // 房间设置
 export interface RoomSettings {
   allowStacking: boolean;
   allowMultipleCards: boolean;
   allowJumpIn: boolean;
   scoringMode: boolean;
+  // 游戏模式
+  mode: GameMode;
+}
+
+// Out模式状态（3阶段机制）
+export interface OutState {
+  phase: 0 | 1 | 2 | 3; // 0=正常, 1-3=Out阶段
+  maxCards: number; // 当前手牌上限（超出淘汰）
+  nextOutAt: number; // 下次Out时间戳
 }
 
 // 游戏状态
@@ -58,22 +71,46 @@ export interface GameState {
   players: Player[]; // 包含每个玩家的手牌信息
   // 连打（叠加）状态
   pendingDraw?: number; // 待摸牌数（连打累计）
-  pendingDrawType?: 'draw2' | 'draw4'; // 连打类型（+2和+4不能混）
+  pendingDrawType?: 'draw2' | 'draw3' | 'draw4' | 'draw5' | 'draw8'; // 连打类型（同类型可叠加，draw8万能可叠加任何）
   // 排名模式
   rankings?: string[]; // 出完牌的玩家排名（按先后顺序）
   isRoundEnded?: boolean; // 本轮是否已结束
   // UI提示
   skippedPlayerId?: string; // 被跳过的玩家ID（用于显示跳过提示）
+  // Out模式
+  outState?: OutState; // Out模式状态
+  gameStartTime?: number; // 游戏开始时间戳（Out模式需要）
+  humanPlayerCount?: number; // 开局真人数量（Out模式需要）
+  maxHandSize?: number; // 手牌上限（Out模式=20，标准模式=0表示无上限）
 }
+
+// 游戏动作类型
+export type GameActionType = 
+  | 'play' 
+  | 'draw' 
+  | 'skip' 
+  | 'uno' 
+  | 'challenge' 
+  | 'jumpIn'
+  | 'combo'      // 连打出牌
+  | 'rainbow';   // 彩虹转移（特殊的combo）
+
+// 连打类型
+export type ComboType = 'pair' | 'three' | 'rainbow' | 'straight';
 
 // 游戏动作
 export interface GameAction {
-  type: 'play' | 'draw' | 'skip' | 'uno' | 'challenge' | 'jumpIn';
+  type: GameActionType;
   playerId: string;
   card?: Card;
   cards?: Card[];
-  color?: string;
+  cardIds?: string[];       // 连打时使用的卡牌ID列表
+  color?: string;           // 选定的颜色（万能牌）
+  chosenColor?: string;     // 出牌时选定的颜色
   timestamp: number;
+  // 连打相关
+  comboType?: ComboType;    // 连打类型
+  targetId?: string;        // 彩虹指定目标
 }
 
 // 聊天消息
