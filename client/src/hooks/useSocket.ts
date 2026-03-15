@@ -23,6 +23,7 @@ interface UseSocketReturn extends SocketState {
   jumpIn: (roomCode: string, cardId: string) => void;
   updateSettings: (roomCode: string, settings: Partial<RoomSettings>) => void;
   reconnect: (roomCode: string, playerId: string) => void;
+  sendMessage: (roomCode: string, type: 'emoji' | 'text', content: string) => void;
 }
 
 export function useSocket(
@@ -208,6 +209,10 @@ export function useSocket(
     socketRef.current?.emit('player:reconnect', { roomCode, playerId });
   }, []);
 
+  const sendMessage = useCallback((roomCode: string, type: 'emoji' | 'text', content: string) => {
+    socketRef.current?.emit('chat:send', { roomCode, type, content });
+  }, []);
+
   return {
     socket: socketRef.current,
     ...state,
@@ -223,6 +228,7 @@ export function useSocket(
     challengeUno,
     jumpIn,
     updateSettings,
-    reconnect
+    reconnect,
+    sendMessage
   };
 }

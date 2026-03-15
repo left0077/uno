@@ -5,12 +5,13 @@ import { Game } from './pages/Game';
 import { SettingsModal } from './components/SettingsModal';
 import { useSocket } from './hooks/useSocket';
 import { useGameStore } from './hooks/useGameStore';
-import type { Room as RoomType, GameState, Player, RoomSettings } from '../../shared/types';
+import type { Room as RoomType, GameState, Player, RoomSettings, ChatMessage } from '../../shared/types';
 
 type Page = 'home' | 'room' | 'game';
 
 function App() {
   const store = useGameStore();
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   // 检查 URL 参数（优先处理分享链接）
   const urlParams = new URLSearchParams(window.location.search);
   const inviteRoomCode = urlParams.get('room');
@@ -163,6 +164,22 @@ function App() {
       socket.socket?.off('player:reconnected', handleReconnected);
     };
   }, [socket.socket, store]);
+  
+  // 处理聊天消息
+  useEffect(() => {
+    const handleReceiveMessage = (msg: ChatMessage) => {
+      setChatMessages(prev => [...prev.slice(-9), msg]); // 保留最近10条
+      // 3秒后自动移除
+      setTimeout(() => {
+        setChatMessages(prev => prev.filter(m => m.timestamp !== msg.timestamp));
+      }, 5000);
+    };
+    
+    socket.socket?.on('chat:receive', handleReceiveMessage);
+    return () => {
+      socket.socket?.off('chat:receive', handleReceiveMessage);
+    };
+  }, [socket.socket]);
 
   const handleCreateRoom = useCallback(() => {
     socket.createRoom(store.nickname);
@@ -216,6 +233,12 @@ function App() {
   const handleJumpIn = useCallback((cardId: string) => {
     if (store.currentRoom) {
       socket.jumpIn(store.currentRoom.code, cardId);
+    }
+  }, [socket, store.currentRoom]);
+
+  const handleSendEmoji = useCallback((emoji: string) => {
+    if (store.currentRoom) {
+      socket.sendMessage(store.currentRoom.code, 'emoji', emoji);
     }
   }, [socket, store.currentRoom]);
 
@@ -326,6 +349,8 @@ function App() {
           onChallengeUno={handleChallengeUno}
           onJumpIn={handleJumpIn}
           onLeaveGame={handleLeaveRoom}
+          onSendEmoji={handleSendEmoji}
+          chatMessages={chatMessages}
         />
         </>
       );

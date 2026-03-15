@@ -299,5 +299,29 @@ export function setupSocketHandlers(io: Server): void {
         io.to(data.roomCode).emit('game:jumpInSuccess', { playerId: socket.id, cardId: data.cardId });
       }
     });
+    
+    // 发送聊天消息（emoji/文字）
+    socket.on(SocketEvents.SEND_MESSAGE, (data: { roomCode: string; type: 'emoji' | 'text'; content: string }) => {
+      const room = roomManager.getRoom(data.roomCode);
+      if (!room) {
+        socket.emit(SocketEvents.ERROR, { code: 'ROOM_NOT_FOUND', message: '房间不存在' });
+        return;
+      }
+      
+      const player = room.players.find(p => p.id === socket.id);
+      if (!player) {
+        socket.emit(SocketEvents.ERROR, { code: 'PLAYER_NOT_FOUND', message: '玩家不在房间中' });
+        return;
+      }
+      
+      // 广播消息给房间所有玩家
+      io.to(data.roomCode).emit(SocketEvents.RECEIVE_MESSAGE, {
+        type: data.type,
+        content: data.content,
+        playerId: socket.id,
+        playerName: player.nickname,
+        timestamp: Date.now()
+      });
+    });
   });
 }

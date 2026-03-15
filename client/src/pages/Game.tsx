@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Users, ArrowRight, Volume2, VolumeX, LogOut, Trophy, Ban } from 'lucide-react';
+import { Clock, Users, ArrowRight, Volume2, VolumeX, LogOut, Trophy, Ban, Smile } from 'lucide-react';
 import { Card, ColorPicker } from '../components/Card';
-import type { Room, GameState, Card as CardType, Player } from '../../../shared/types';
+import type { Room, GameState, Card as CardType, Player, ChatMessage } from '../../../shared/types';
 
 interface GameProps {
   room: Room;
@@ -14,6 +14,8 @@ interface GameProps {
   onChallengeUno?: (targetId: string) => void;
   onJumpIn?: (cardId: string) => void;
   onLeaveGame: () => void;
+  onSendEmoji?: (emoji: string) => void;
+  chatMessages?: ChatMessage[];
 }
 
 export function Game({ 
@@ -25,9 +27,12 @@ export function Game({
   onCallUno,
   onChallengeUno,
   onJumpIn,
-  onLeaveGame 
+  onLeaveGame,
+  onSendEmoji,
+  chatMessages = []
 }: GameProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [pendingCard, setPendingCard] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -417,15 +422,65 @@ export function Game({
               </button>
             ))}
           </div>
-          <div className="text-sm text-slate-400">
-            手牌: {currentPlayer?.cardCount || 0}张
-            {playableCards.size > 0 ? (
-              <span className="ml-2 text-green-400">({playableCards.size}张可出)</span>
-            ) : isMyTurn ? (
-              <span className="ml-2 text-yellow-400">(无牌可出)</span>
-            ) : null}
+          
+          {/* Emoji 按钮 */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-yellow-400 transition-colors"
+                title="发送表情"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
+              
+              {/* Emoji 选择器 */}
+              {showEmojiPicker && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-slate-800 rounded-xl shadow-xl border border-slate-700 grid grid-cols-5 gap-2 w-64 z-50">
+                  {['😀', '😂', '😍', '🤔', '😭', '😡', '👍', '👎', '🔥', '❤️', '🎉', '🤮', '💩', '🤡', '😈'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        onSendEmoji?.(emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                      className="text-2xl p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="text-sm text-slate-400">
+              手牌: {currentPlayer?.cardCount || 0}张
+              {playableCards.size > 0 ? (
+                <span className="ml-2 text-green-400">({playableCards.size}张可出)</span>
+              ) : isMyTurn ? (
+                <span className="ml-2 text-yellow-400">(无牌可出)</span>
+              ) : null}
+            </div>
           </div>
         </div>
+
+        {/* 聊天消息显示 */}
+        <AnimatePresence>
+          {chatMessages.slice(-3).map((msg, index) => (
+            <motion.div
+              key={`${msg.timestamp}-${index}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-1"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/80 rounded-full">
+                <span className="text-sm text-slate-400">{msg.playerName}</span>
+                <span className="text-2xl">{msg.content}</span>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
         {/* 被跳过提示 */}
         <AnimatePresence>

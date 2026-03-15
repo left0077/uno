@@ -73,6 +73,15 @@ export interface GameAction {
   timestamp: number;
 }
 
+// 聊天消息
+export interface ChatMessage {
+  type: 'emoji' | 'text';
+  content: string;
+  playerId: string;
+  playerName: string;
+  timestamp: number;
+}
+
 // Socket 事件类型
 export enum SocketEvents {
   // 连接
@@ -100,6 +109,10 @@ export enum SocketEvents {
   // AI
   ADD_AI = 'ai:add',
   REMOVE_AI = 'ai:remove',
+  
+  // 聊天
+  SEND_MESSAGE = 'chat:send',
+  RECEIVE_MESSAGE = 'chat:receive',
   
   // 错误
   ERROR = 'error',
