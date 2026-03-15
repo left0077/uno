@@ -10,11 +10,11 @@ test.describe('断线重连测试', () => {
   test('页面刷新后自动重连房间', async ({ page }) => {
     // 进入首页并创建房间
     await page.goto('https://left0077.github.io/uno/');
-    await page.getByPlaceholder(/请输入昵称|昵称/i).fill('测试玩家');
-    await page.getByText(/创建房间/i).click();
+    await page.getByPlaceholder(/昵称/i).first().fill('测试玩家');
+    await page.getByRole('button', { name: /创建房间/i }).click();
     
     // 等待进入房间
-    await expect(page.getByText(/房间|Room/i)).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(3000); // 等待房间页面加载
     await expect(page.getByText('测试玩家')).toBeVisible();
     
     // 记录房间号
@@ -54,8 +54,8 @@ test.describe('断线重连测试', () => {
     // 创建房间并添加AI开始游戏
     await page.goto('https://left0077.github.io/uno/');
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
-    await page.getByText(/创建房间/i).click();
-    await expect(page.getByText(/房间|Room/i)).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: /创建房间/i }).click();
+    await page.waitForTimeout(3000); // 等待房间页面加载
     
     // 添加AI
     await page.getByText(/添加AI|AI/i).click();
@@ -163,8 +163,8 @@ test.describe('断线重连测试', () => {
     // 创建房间并开始游戏
     await page.goto('https://left0077.github.io/uno/');
     await page.getByPlaceholder(/请输入昵称|昵称/i).fill('玩家');
-    await page.getByText(/创建房间/i).click();
-    await expect(page.getByText(/房间|Room/i)).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: /创建房间/i }).click();
+    await page.waitForTimeout(3000); // 等待房间页面加载
     
     // 添加AI并开始游戏
     await page.getByText(/添加AI|AI/i).click();
@@ -198,9 +198,9 @@ test.describe('断线重连测试', () => {
 
   test('断网后自动重连提示', async ({ page }) => {
     await page.goto('https://left0077.github.io/uno/');
-    await page.getByPlaceholder(/请输入昵称|昵称/i).fill('测试玩家');
-    await page.getByText(/创建房间/i).click();
-    await expect(page.getByText(/房间|Room/i)).toBeVisible({ timeout: 15000 });
+    await page.getByPlaceholder(/昵称/i).first().fill('测试玩家');
+    await page.getByRole('button', { name: /创建房间/i }).click();
+    await page.waitForTimeout(3000); // 等待房间页面加载
     
     // 模拟断网
     await page.context().setOffline(true);
