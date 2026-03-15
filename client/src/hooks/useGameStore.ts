@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import type { Room, Player, GameState, Card } from '../../../shared/types';
 
-// 默认服务器地址
-const DEFAULT_SERVER_URL = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin.replace(/:\d+$/, '') + ':3001';
+// 默认服务器地址 - Render 部署的后端
+const DEFAULT_SERVER_URL = 'https://uno-server-jbbr.onrender.com';
 
 interface GameStore {
   // 玩家信息
