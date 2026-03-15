@@ -188,7 +188,7 @@ export function Room({
                 ))}
 
                 {/* 空位提示 */}
-                {Array.from({ length: Math.max(0, 4 - room.players.length) }).map((_, i) => (
+                {Array.from({ length: Math.max(0, room.maxPlayers - room.players.length) }).map((_, i) => (
                   <div
                     key={`empty-${i}`}
                     className="flex items-center gap-3 p-3 border-2 border-dashed border-slate-700/50 rounded-lg text-slate-600"

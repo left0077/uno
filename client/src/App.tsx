@@ -11,8 +11,18 @@ type Page = 'home' | 'room' | 'game';
 
 function App() {
   const store = useGameStore();
-  // 根据保存的状态初始化页面
+  // 检查 URL 参数（优先处理分享链接）
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteRoomCode = urlParams.get('room');
+  
+  // 根据保存的状态或URL参数初始化页面
   const [page, setPage] = useState<Page>(() => {
+    // 如果有分享链接的房间号，显示主页等待加入
+    if (inviteRoomCode) {
+      localStorage.setItem('uno-invite-room', inviteRoomCode);
+      return 'home';
+    }
+    // 否则检查保存的状态
     const savedRoom = localStorage.getItem('uno-current-room');
     const savedGameState = localStorage.getItem('uno-game-state');
     if (savedGameState) return 'game';
@@ -34,18 +44,12 @@ function App() {
     }
   }, []);
   
-  // 检查 URL 参数，处理分享链接
+  // 清除 URL 参数（处理完后）
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomCode = urlParams.get('room');
-    
-    if (roomCode && page === 'home') {
-      // 保存房间号到 localStorage，让 Home 页面读取
-      localStorage.setItem('uno-invite-room', roomCode);
-      // 清除 URL 参数
+    if (inviteRoomCode) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [page]);
+  }, []);
   
   const handleRoomCreated = useCallback((room: RoomType) => {
     store.setCurrentRoom(room);
