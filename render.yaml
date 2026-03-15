@@ -3,7 +3,7 @@ services:
     name: uno-server
     runtime: node
     plan: free
-    buildCommand: npm ci && cd client && npm ci && cd ../server && npm ci && cd .. && npm run build
+    buildCommand: npm install && cd server && npm install && npm run build
     startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV
