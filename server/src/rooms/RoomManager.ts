@@ -269,8 +269,12 @@ export class RoomManager {
   }
   
   // 更新玩家房间映射（用于重连）
-  updatePlayerRoomMap(playerId: string, roomCode: string): void {
-    this.playerRoomMap.set(playerId, roomCode);
+  updatePlayerRoomMap(playerId: string, roomCode: string, removeOnly: boolean = false): void {
+    if (removeOnly) {
+      this.playerRoomMap.delete(playerId);
+    } else {
+      this.playerRoomMap.set(playerId, roomCode);
+    }
   }
 }
 

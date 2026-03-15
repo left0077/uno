@@ -81,26 +81,46 @@ export function setupSocketHandlers(io: Server): void {
         return;
       }
       
-      // 更新玩家信息
+      // 重要：更新玩家的 socket ID（断线后 socket ID 会变）
+      const oldPlayerId = player.id;
+      player.id = socket.id;
       player.isConnected = true;
       player.disconnectedAt = undefined;
       
-      // 更新 playerRoomMap
-      roomManager.updatePlayerRoomMap(data.playerId, data.roomCode);
+      // 如果是房主，更新 hostId
+      if (room.hostId === oldPlayerId) {
+        room.hostId = socket.id;
+      }
+      
+      // 更新 playerRoomMap（删除旧映射，添加新映射）
+      roomManager.updatePlayerRoomMap(oldPlayerId, data.roomCode, true); // 删除旧映射
+      roomManager.updatePlayerRoomMap(socket.id, data.roomCode); // 添加新映射
+      
+      // 更新游戏实例中的玩家 ID
+      const game = activeGames.get(data.roomCode);
+      if (game) {
+        // 如果当前轮到该玩家，更新 currentPlayerId
+        const gameState = game.getGameState();
+        if (gameState.currentPlayerId === oldPlayerId) {
+          // 通过私有方法更新，或者需要添加公共方法
+          (gameState as any).currentPlayerId = socket.id;
+        }
+      }
       
       // 加入房间
       socket.join(data.roomCode);
       
-      // 返回房间和游戏状态
+      // 返回房间和游戏状态（使用新的 player ID）
       socket.emit('player:reconnected', {
         success: true,
         room,
-        gameState: room.gameState
+        gameState: room.gameState,
+        newPlayerId: socket.id // 告诉客户端新的 player ID
       });
       
-      // 广播玩家重连
+      // 广播玩家重连（通知其他玩家）
       io.to(data.roomCode).emit(SocketEvents.ROOM_UPDATED, room);
-      console.log(`Player ${data.playerId} reconnected to room ${data.roomCode}`);
+      console.log(`Player reconnected: ${oldPlayerId} -> ${socket.id} in room ${data.roomCode}`);
     });
     
     // ========== AI管理 ==========

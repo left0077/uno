@@ -146,9 +146,16 @@ function App() {
   
   // 处理重连成功
   useEffect(() => {
-    const handleReconnected = (data: { success: boolean; room: RoomType; gameState?: GameState }) => {
+    const handleReconnected = (data: { success: boolean; room: RoomType; gameState?: GameState; newPlayerId?: string }) => {
       if (data.success) {
         setIsReconnecting(false);
+        
+        // 如果服务器分配了新的 player ID，更新 localStorage
+        if (data.newPlayerId) {
+          localStorage.setItem('uno-player-id', data.newPlayerId);
+          console.log('Player ID updated:', data.newPlayerId);
+        }
+        
         store.setCurrentRoom(data.room);
         if (data.gameState) {
           store.setGameState(data.gameState);
