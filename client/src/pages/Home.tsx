@@ -25,19 +25,25 @@ export function Home({
   const [roomCode, setRoomCode] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
+  const [isAutoJoining, setIsAutoJoining] = useState(false);
   
-  // 检查是否有邀请链接的房间号
+  // 直接从 URL 参数读取邀请链接
   useEffect(() => {
-    const inviteRoom = localStorage.getItem('uno-invite-room');
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteRoom = urlParams.get('room') || localStorage.getItem('uno-invite-room');
+    
     if (inviteRoom && !autoJoinAttempted) {
       setRoomCode(inviteRoom);
-      setShowJoinInput(true);
       setAutoJoinAttempted(true);
       localStorage.removeItem('uno-invite-room');
       
-      // 如果已有昵称且已连接，自动加入房间
+      // 如果已有昵称且已连接，立即自动加入房间
       if (nickname.trim() && isConnected) {
+        setIsAutoJoining(true);
         onJoinRoom(inviteRoom);
+      } else {
+        // 显示邀请信息，等待用户输入昵称
+        setShowJoinInput(true);
       }
     }
   }, [nickname, isConnected, onJoinRoom, autoJoinAttempted]);
@@ -45,12 +51,13 @@ export function Home({
   // 当用户输入昵称后，如果有房间号，自动加入
   const prevNicknameRef = useRef(nickname);
   useEffect(() => {
-    // 昵称从空变为有值，且有房间号，且已连接
-    if (!prevNicknameRef.current.trim() && nickname.trim() && roomCode && isConnected && showJoinInput) {
+    // 昵称从空变为有值，且有房间号，且已连接，且正在等待自动加入
+    if (!prevNicknameRef.current.trim() && nickname.trim() && roomCode && isConnected && showJoinInput && !isAutoJoining) {
+      setIsAutoJoining(true);
       onJoinRoom(roomCode);
     }
     prevNicknameRef.current = nickname;
-  }, [nickname, roomCode, isConnected, showJoinInput, onJoinRoom]);
+  }, [nickname, roomCode, isConnected, showJoinInput, onJoinRoom, isAutoJoining]);
 
   const handleCreateRoom = () => {
     if (!nickname.trim()) {
@@ -105,7 +112,7 @@ export function Home({
         </div>
 
         {/* 邀请链接提示 */}
-        {showJoinInput && roomCode && (
+        {roomCode && (
           <div className="mb-4 p-4 bg-blue-500/20 border border-blue-500/50 rounded-lg">
             <div className="flex items-center gap-2 text-blue-400 mb-2">
               <Sparkles className="w-5 h-5" />
@@ -114,11 +121,20 @@ export function Home({
             <p className="text-sm text-slate-300">
               房间号: <span className="font-mono font-bold text-white text-lg tracking-widest">{roomCode}</span>
             </p>
-            {!nickname.trim() && (
+            {isAutoJoining ? (
+              <p className="text-sm text-green-400 mt-2 flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                正在自动加入房间...
+              </p>
+            ) : !nickname.trim() ? (
               <p className="text-sm text-yellow-400 mt-2">
                 👆 请先输入昵称，系统将自动加入房间
               </p>
-            )}
+            ) : !isConnected ? (
+              <p className="text-sm text-yellow-400 mt-2">
+                ⏳ 等待连接服务器...
+              </p>
+            ) : null}
           </div>
         )}
 
