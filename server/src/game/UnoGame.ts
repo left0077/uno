@@ -174,17 +174,9 @@ export class UnoGame {
         // 机器人摸牌并结束回合
         // 如果有连打惩罚，摸累积的牌；否则摸1张
         const drawCount = this.gameState.pendingDraw || 1;
-        this.drawCards(botPlayer.id, drawCount, true);
-        // 清除连打状态
-        this.gameState.pendingDraw = undefined;
-        this.gameState.pendingDrawType = undefined;
         
-        this.gameState.currentPlayerId = this.getNextPlayerId();
-        this.gameState.turnStartTime = Date.now();
-        this.gameState.turnTimer = 120;
-        this.gameState.players = this.room.players;
-        this.startTurnTimer();
-        this.onStateChange(this.gameState);
+        // drawCards 内部已经调用了 nextTurn()，不需要再手动切换回合
+        this.drawCards(botPlayer.id, drawCount, true);
         
         // 检查下一家是否也是机器人
         const nextPlayer = this.getCurrentPlayer();
