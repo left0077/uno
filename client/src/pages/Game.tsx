@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Users, ArrowRight, Volume2, VolumeX, LogOut, Trophy, Ban, Smile } from 'lucide-react';
+import { Clock, Users, ArrowRight, Volume2, VolumeX, LogOut, Trophy, Ban } from 'lucide-react';
 import { Card, ColorPicker } from '../components/Card';
 import type { Room, GameState, Card as CardType, Player, ChatMessage } from '../../../shared/types';
 
@@ -32,7 +32,6 @@ export function Game({
   chatMessages = []
 }: GameProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [pendingCard, setPendingCard] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -423,34 +422,19 @@ export function Game({
             ))}
           </div>
           
-          {/* Emoji 按钮 */}
+          {/* Emoji 快捷发送 - 直接显示一排 */}
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-yellow-400 transition-colors"
-                title="发送表情"
-              >
-                <Smile className="w-5 h-5" />
-              </button>
-              
-              {/* Emoji 选择器 */}
-              {showEmojiPicker && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-3 bg-slate-800 rounded-xl shadow-xl border border-slate-700 grid grid-cols-5 gap-2 w-64 z-50">
-                  {['😀', '😂', '😍', '🤔', '😭', '😡', '👍', '👎', '🔥', '❤️', '🎉', '🤮', '💩', '🤡', '😈'].map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => {
-                        onSendEmoji?.(emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      className="text-2xl p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="flex items-center gap-1 px-2 py-1 bg-slate-800/80 rounded-lg">
+              {['👍', '👎', '🔥', '😂', '😭', '😡', '❤️', '🎉', '🤮', '💩'].map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => onSendEmoji?.(emoji)}
+                  className="text-xl p-1.5 hover:bg-slate-700 rounded-md transition-colors"
+                  title={emoji}
+                >
+                  {emoji}
+                </button>
+              ))}
             </div>
             
             <div className="text-sm text-slate-400">
