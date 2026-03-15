@@ -27,37 +27,47 @@ export function Home({
   const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
   const [isAutoJoining, setIsAutoJoining] = useState(false);
   
-  // 直接从 URL 参数读取邀请链接
+  // 从 localStorage 读取邀请链接（App.tsx 已存入）
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const inviteRoom = urlParams.get('room') || localStorage.getItem('uno-invite-room');
+    if (autoJoinAttempted) return;
     
-    if (inviteRoom && !autoJoinAttempted) {
+    const inviteRoom = localStorage.getItem('uno-invite-room');
+    if (inviteRoom) {
       setRoomCode(inviteRoom);
       setAutoJoinAttempted(true);
-      localStorage.removeItem('uno-invite-room');
-      
-      // 如果已有昵称且已连接，立即自动加入房间
-      if (nickname.trim() && isConnected) {
-        setIsAutoJoining(true);
-        onJoinRoom(inviteRoom);
-      } else {
-        // 显示邀请信息，等待用户输入昵称
-        setShowJoinInput(true);
-      }
+      // 不立即清除 localStorage，等加入成功后再清除
     }
-  }, [nickname, isConnected, onJoinRoom, autoJoinAttempted]);
+  }, [autoJoinAttempted]);
   
-  // 当用户输入昵称后，如果有房间号，自动加入
+  // 有房间号时，根据状态自动加入
+  useEffect(() => {
+    if (!roomCode || isAutoJoining) return;
+    
+    // 如果已有昵称且已连接，立即自动加入
+    if (nickname.trim() && isConnected) {
+      setIsAutoJoining(true);
+      localStorage.removeItem('uno-invite-room'); // 清除邀请记录
+      onJoinRoom(roomCode);
+    } else if (!nickname.trim()) {
+      // 没有昵称，显示提示等待输入
+      setShowJoinInput(true);
+    }
+  }, [roomCode, nickname, isConnected, isAutoJoining, onJoinRoom]);
+  
+  // 当用户输入昵称后，自动加入房间
   const prevNicknameRef = useRef(nickname);
   useEffect(() => {
-    // 昵称从空变为有值，且有房间号，且已连接，且正在等待自动加入
-    if (!prevNicknameRef.current.trim() && nickname.trim() && roomCode && isConnected && showJoinInput && !isAutoJoining) {
+    if (!roomCode || isAutoJoining) return;
+    
+    // 昵称从空变为有值，且已连接
+    if (!prevNicknameRef.current.trim() && nickname.trim() && isConnected) {
       setIsAutoJoining(true);
+      setShowJoinInput(false);
+      localStorage.removeItem('uno-invite-room'); // 清除邀请记录
       onJoinRoom(roomCode);
     }
     prevNicknameRef.current = nickname;
-  }, [nickname, roomCode, isConnected, showJoinInput, onJoinRoom, isAutoJoining]);
+  }, [nickname, roomCode, isConnected, onJoinRoom, isAutoJoining]);
 
   const handleCreateRoom = () => {
     if (!nickname.trim()) {
