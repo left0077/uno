@@ -1,4 +1,4 @@
-import { Room, Player, GameState, GameAction } from '../shared/index.js';
+import { Room, Player, GameState, GameAction, Card } from '../shared/index.js';
 import { GameMode, GameModeFactory } from './modes/GameMode.js';
 import { StandardMode } from './modes/StandardMode.js';
 import { OutMode } from './modes/OutMode.js';
@@ -233,14 +233,25 @@ export class UnoGame {
   
   /**
    * 摸牌（兼容旧API）
+   * @returns 摸到的牌数组
    */
-  drawCards(playerId: string, count?: number): boolean {
-    // 简化处理，实际应该处理count张
-    return this.handleAction({
+  drawCards(playerId: string, count?: number): Card[] {
+    const success = this.handleAction({
       type: 'draw',
       playerId,
       timestamp: Date.now()
     }, playerId);
+    
+    if (success) {
+      // 返回玩家最新摸到的牌
+      const player = this.gameState.players.find(p => p.id === playerId);
+      if (player) {
+        const actualCount = count || 1;
+        return player.cards.slice(-actualCount);
+      }
+    }
+    
+    return [];
   }
   
   /**
@@ -289,7 +300,16 @@ export class UnoGame {
   /**
    * 结束游戏（兼容旧API）
    */
-  endGame(): void {
+  endGame(winner?: Player): void {
+    if (winner) {
+      // 添加到排名
+      if (!this.gameState.rankings) this.gameState.rankings = [];
+      if (!this.gameState.rankings.includes(winner.id)) {
+        this.gameState.rankings.push(winner.id);
+      }
+      this.gameState.winner = winner.id;
+      this.callbacks.onGameEnd(winner);
+    }
     this.destroy();
   }
 }

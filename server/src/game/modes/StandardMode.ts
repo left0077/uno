@@ -10,22 +10,7 @@ export class StandardMode implements GameMode {
   readonly name = 'standard';
   readonly description = '经典UNO规则';
   
-  // 动作处理器注册表
-  private actionHandlers = new Map<string, ActionHandler>();
-  
-  constructor() {
-    this.registerHandlers();
-  }
-  
-  private registerHandlers(): void {
-    this.actionHandlers.set('play', new PlayCardHandler());
-    this.actionHandlers.set('draw', new DrawCardHandler());
-    this.actionHandlers.set('skip', new SkipTurnHandler());
-    this.actionHandlers.set('uno', new CallUnoHandler());
-    this.actionHandlers.set('challenge', new ChallengeHandler());
-    this.actionHandlers.set('jumpIn', new JumpInHandler());
-    this.actionHandlers.set('reverse', new PlayReverseHandler());
-  }
+  constructor() {}
   
   initialize(room: Room): GameState {
     const deck = CardManager.createDeck();
@@ -47,6 +32,7 @@ export class StandardMode implements GameMode {
       const cards = deck.splice(-CARDS_PER_PLAYER, CARDS_PER_PLAYER);
       player.cards = cards;
       player.cardCount = player.cards.length;
+      player.hasCalledUno = false;
     });
     
     const now = Date.now();
@@ -99,13 +85,104 @@ export class StandardMode implements GameMode {
     action: GameAction, 
     playerId: string
   ): { valid: boolean; error?: string } {
-    const handler = this.actionHandlers.get(action.type);
-    if (!handler) {
-      return { valid: false, error: `Unknown action type: ${action.type}` };
+    switch (action.type) {
+      case 'play':
+        return this.validatePlayCard(state, action, playerId);
+      case 'draw':
+        return this.validateDrawCard(state, playerId);
+      case 'skip':
+        return { valid: state.currentPlayerId === playerId };
+      case 'uno':
+        return this.validateCallUno(state, playerId);
+      case 'challenge':
+        return { valid: true };
+      case 'jumpIn':
+        return this.validateJumpIn(state, action, playerId);
+      default:
+        return { valid: false, error: `Unknown action type: ${action.type}` };
+    }
+  }
+  
+  private validatePlayCard(
+    state: GameState, 
+    action: GameAction, 
+    playerId: string
+  ): { valid: boolean; error?: string } {
+    if (state.currentPlayerId !== playerId) {
+      return { valid: false, error: 'Not your turn' };
     }
     
-    const ctx: ActionContext = { state, playerId, action };
-    return handler.validate(ctx);
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) {
+      return { valid: false, error: 'Player not found' };
+    }
+    
+    const cardId = action.cardIds?.[0];
+    if (!cardId) {
+      return { valid: false, error: 'No card specified' };
+    }
+    
+    const card = player.cards.find(c => c.id === cardId);
+    if (!card) {
+      return { valid: false, error: 'Card not found' };
+    }
+    
+    // 检查是否可以出这张牌
+    if (!this.canPlayCard(state, card, player)) {
+      return { valid: false, error: 'Cannot play this card' };
+    }
+    
+    return { valid: true };
+  }
+  
+  private validateDrawCard(state: GameState, playerId: string): { valid: boolean; error?: string } {
+    if (state.currentPlayerId !== playerId) {
+      return { valid: false, error: 'Not your turn' };
+    }
+    return { valid: true };
+  }
+  
+  private validateCallUno(state: GameState, playerId: string): { valid: boolean; error?: string } {
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) {
+      return { valid: false, error: 'Player not found' };
+    }
+    
+    // 手牌为1张或2张时都可以喊UNO（1张是出完牌后，2张是出牌前）
+    if (player.cards.length > 2) {
+      return { valid: false, error: 'Can only call UNO when you have 1 or 2 cards' };
+    }
+    
+    return { valid: true };
+  }
+  
+  private validateJumpIn(
+    state: GameState, 
+    action: GameAction, 
+    playerId: string
+  ): { valid: boolean; error?: string } {
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) {
+      return { valid: false, error: 'Player not found' };
+    }
+    
+    const cardId = action.cardIds?.[0];
+    if (!cardId) {
+      return { valid: false, error: 'No card specified' };
+    }
+    
+    const card = player.cards.find(c => c.id === cardId);
+    if (!card) {
+      return { valid: false, error: 'Card not found' };
+    }
+    
+    // 检查颜色和数值是否完全匹配
+    const topCard = state.discardPile[state.discardPile.length - 1];
+    if (card.color !== topCard.color && card.value !== topCard.value) {
+      return { valid: false, error: 'Card must match color and value exactly' };
+    }
+    
+    return { valid: true };
   }
   
   executeAction(
@@ -113,42 +190,185 @@ export class StandardMode implements GameMode {
     action: GameAction, 
     playerId: string
   ): GameState {
-    const handler = this.actionHandlers.get(action.type);
-    if (!handler) {
-      throw new Error(`Unknown action type: ${action.type}`);
+    // 直接修改原状态（保持引用一致性）
+    switch (action.type) {
+      case 'play':
+        return this.executePlayCard(state, action, playerId);
+      case 'draw':
+        return this.executeDrawCard(state, playerId);
+      case 'skip':
+        return this.executeSkip(state, playerId);
+      case 'uno':
+        return this.executeCallUno(state, playerId);
+      case 'challenge':
+        return this.executeChallenge(state, action, playerId);
+      case 'jumpIn':
+        return this.executeJumpIn(state, action, playerId);
+      default:
+        return state;
     }
-    
-    const ctx: ActionContext = { state, playerId, action };
-    return handler.execute(ctx);
   }
   
-  getAvailableActions(state: GameState, playerId: string): GameAction[] {
-    const actions: GameAction[] = [];
-    const player = state.players.find(p => p.id === playerId);
+  private executePlayCard(
+    state: GameState, 
+    action: GameAction, 
+    playerId: string
+  ): GameState {
+    const player = state.players.find(p => p.id === playerId)!;
+    const cardId = action.cardIds![0];
+    const cardIndex = player.cards.findIndex(c => c.id === cardId);
+    const card = player.cards[cardIndex];
     
-    if (!player || state.currentPlayerId !== playerId) {
-      return actions;
+    // 从手牌移除
+    player.cards.splice(cardIndex, 1);
+    player.cardCount = player.cards.length;
+    
+    // 加入弃牌堆
+    state.discardPile.push(card);
+    
+    // 处理万能牌颜色选择
+    if (card.type === 'wild' || card.type === 'draw4') {
+      state.currentColor = action.chosenColor || action.color || 'red';
+    } else {
+      state.currentColor = card.color;
     }
     
-    // 检查可以出的牌
-    for (const card of player.cards) {
-      if (this.canPlayCard(state, card, player)) {
-        actions.push({
-          type: 'play',
-          playerId: player.id,
-          timestamp: Date.now(),
-          cardIds: [card.id],
-          chosenColor: card.type === 'wild' || card.type === 'draw4' ? undefined : card.color
-        });
+    // 处理+2和+4的累积
+    if (card.type === 'draw2') {
+      if (state.pendingDrawType === 'draw2' || !state.pendingDraw) {
+        state.pendingDraw = (state.pendingDraw || 0) + 2;
+        state.pendingDrawType = 'draw2';
+      }
+    } else if (card.type === 'draw4') {
+      if (state.pendingDrawType === 'draw4' || !state.pendingDraw) {
+        state.pendingDraw = (state.pendingDraw || 0) + 4;
+        state.pendingDrawType = 'draw4';
+      }
+    } else {
+      // 普通牌清空累积
+      if (state.pendingDraw && state.pendingDraw > 0) {
+        // 执行累积的摸牌
+        const nextPlayer = this.getNextPlayer(state, playerId);
+        this.drawCardsForPlayer(state, nextPlayer, state.pendingDraw);
+        state.pendingDraw = 0;
+        state.pendingDrawType = undefined;
       }
     }
     
-    // 可以摸牌
-    if (!actions.some(a => a.type === 'play')) {
-      actions.push({ type: 'draw', playerId: player.id, timestamp: Date.now() });
+    // 处理功能牌效果
+    switch (card.type) {
+      case 'skip':
+        // 跳过下家
+        const skipTarget = this.getNextPlayer(state, playerId);
+        state.skippedPlayerId = skipTarget;
+        state.currentPlayerId = this.getNextPlayer(state, skipTarget);
+        break;
+        
+      case 'reverse':
+        // 反转方向
+        state.direction = state.direction === 'clockwise' ? 'counterclockwise' : 'clockwise';
+        // 如果只有2人，反转等于跳过
+        if (state.players.length === 2) {
+          state.currentPlayerId = playerId; // 还是自己
+        } else {
+          state.currentPlayerId = this.getNextPlayer(state, playerId);
+        }
+        break;
+        
+      default:
+        // 普通牌，移动到下一家
+        state.currentPlayerId = this.getNextPlayer(state, playerId);
     }
     
-    return actions;
+    state.turnStartTime = Date.now();
+    return state;
+  }
+  
+  private executeDrawCard(state: GameState, playerId: string): GameState {
+    const player = state.players.find(p => p.id === playerId)!;
+    
+    // 如果有累积惩罚，摸累积的牌
+    const drawCount = state.pendingDraw && state.pendingDraw > 0 ? state.pendingDraw : 1;
+    
+    for (let i = 0; i < drawCount; i++) {
+      if (state.deck.length === 0) {
+        this.reshuffleDeck(state);
+      }
+      const card = state.deck.pop();
+      if (card) {
+        player.cards.push(card);
+      }
+    }
+    
+    player.cardCount = player.cards.length;
+    
+    // 清空累积惩罚
+    state.pendingDraw = 0;
+    state.pendingDrawType = undefined;
+    
+    // 移动到下一家
+    state.currentPlayerId = this.getNextPlayer(state, playerId);
+    state.turnStartTime = Date.now();
+    
+    return state;
+  }
+  
+  private executeSkip(state: GameState, playerId: string): GameState {
+    // 跳过回合，直接移动到下一家
+    state.currentPlayerId = this.getNextPlayer(state, playerId);
+    state.turnStartTime = Date.now();
+    return state;
+  }
+  
+  private executeCallUno(state: GameState, playerId: string): GameState {
+    const player = state.players.find(p => p.id === playerId)!;
+    player.hasCalledUno = true;
+    return state;
+  }
+  
+  private executeChallenge(
+    state: GameState, 
+    action: GameAction, 
+    playerId: string
+  ): GameState {
+    const targetId = action.targetId;
+    if (!targetId) return state;
+    
+    const targetPlayer = state.players.find(p => p.id === targetId);
+    if (!targetPlayer) return state;
+    
+    // 检查目标是否违规（只剩1张但没喊UNO）
+    if (targetPlayer.cards.length === 1 && !targetPlayer.hasCalledUno) {
+      // 违规，罚摸2张
+      this.drawCardsForPlayer(state, targetId, 2);
+    }
+    
+    return state;
+  }
+  
+  private executeJumpIn(
+    state: GameState, 
+    action: GameAction, 
+    playerId: string
+  ): GameState {
+    const player = state.players.find(p => p.id === playerId)!;
+    const cardId = action.cardIds![0];
+    const cardIndex = player.cards.findIndex(c => c.id === cardId);
+    const card = player.cards[cardIndex];
+    
+    // 从手牌移除
+    player.cards.splice(cardIndex, 1);
+    player.cardCount = player.cards.length;
+    
+    // 加入弃牌堆
+    state.discardPile.push(card);
+    state.currentColor = card.color;
+    
+    // 抢牌后成为当前玩家，继续出牌
+    state.currentPlayerId = playerId;
+    state.turnStartTime = Date.now();
+    
+    return state;
   }
   
   private canPlayCard(state: GameState, card: Card, player: Player): boolean {
@@ -164,18 +384,109 @@ export class StandardMode implements GameMode {
     // 万能牌随时可以出
     if (card.type === 'wild' || card.type === 'draw4') return true;
     
-    // 颜色或数字匹配
+    // 颜色匹配
     if (card.color === state.currentColor) return true;
+    
+    // 数字匹配（都是数字牌）
     if (topCard.type === 'number' && card.type === 'number' && card.value === topCard.value) return true;
+    
+    // 功能牌类型匹配
     if (topCard.type !== 'number' && card.type === topCard.type) return true;
     
     return false;
   }
   
+  private getNextPlayer(state: GameState, currentId: string): string {
+    const currentIndex = state.players.findIndex(p => p.id === currentId);
+    const direction = state.direction === 'clockwise' ? 1 : -1;
+    const nextIndex = (currentIndex + direction + state.players.length) % state.players.length;
+    return state.players[nextIndex].id;
+  }
+  
+  private drawCardsForPlayer(state: GameState, playerId: string, count: number): void {
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) return;
+    
+    for (let i = 0; i < count; i++) {
+      if (state.deck.length === 0) {
+        this.reshuffleDeck(state);
+      }
+      const card = state.deck.pop();
+      if (card) {
+        player.cards.push(card);
+      }
+    }
+    
+    player.cardCount = player.cards.length;
+  }
+  
+  private reshuffleDeck(state: GameState): void {
+    if (state.discardPile.length <= 1) return;
+    
+    const topCard = state.discardPile[state.discardPile.length - 1];
+    const cardsToShuffle = state.discardPile.slice(0, -1);
+    
+    // 洗牌
+    for (let i = cardsToShuffle.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cardsToShuffle[i], cardsToShuffle[j]] = [cardsToShuffle[j], cardsToShuffle[i]];
+    }
+    
+    state.deck = [...cardsToShuffle, ...state.deck];
+    state.discardPile = [topCard];
+  }
+  
+  getAvailableActions(state: GameState, playerId: string): GameAction[] {
+    const actions: GameAction[] = [];
+    const player = state.players.find(p => p.id === playerId);
+    
+    if (!player) {
+      return actions;
+    }
+    
+    // 检查可以出的牌
+    if (state.currentPlayerId === playerId) {
+      for (const card of player.cards) {
+        if (this.canPlayCard(state, card, player)) {
+          actions.push({
+            type: 'play',
+            playerId: player.id,
+            timestamp: Date.now(),
+            cardIds: [card.id],
+            chosenColor: card.type === 'wild' || card.type === 'draw4' ? undefined : card.color
+          });
+        }
+      }
+      
+      // 可以摸牌
+      actions.push({ type: 'draw', playerId: player.id, timestamp: Date.now() });
+    }
+    
+    // 抢牌（jumpIn）- 任何玩家都可以抢
+    const topCard = state.discardPile[state.discardPile.length - 1];
+    for (const card of player.cards) {
+      if (card.color === topCard.color && card.value === topCard.value) {
+        actions.push({
+          type: 'jumpIn',
+          playerId: player.id,
+          timestamp: Date.now(),
+          cardIds: [card.id]
+        });
+      }
+    }
+    
+    return actions;
+  }
+  
   checkWinCondition(state: GameState): string | null {
     // 检查是否有玩家出完手牌
     for (const player of state.players) {
-      if (player.cards.length === 0 && !state.rankings?.includes(player.id)) {
+      if (player.cards.length === 0) {
+        // 添加到排名
+        if (!state.rankings) state.rankings = [];
+        if (!state.rankings.includes(player.id)) {
+          state.rankings.push(player.id);
+        }
         return player.id;
       }
     }
@@ -183,110 +494,10 @@ export class StandardMode implements GameMode {
   }
   
   onTurnEnd(state: GameState, playerId: string): GameState {
-    // 标准模式回合结束无需特殊处理
     return state;
   }
   
   destroy(): void {
     // 清理资源
   }
-}
-
-// ============ 动作处理器实现 ============
-
-class PlayCardHandler implements ActionHandler {
-  readonly type = 'play';
-  
-  canHandle(action: GameAction): boolean {
-    return action.type === 'play';
-  }
-  
-  validate(ctx: ActionContext): { valid: boolean; error?: string } {
-    const { state, playerId, action } = ctx;
-    
-    if (state.currentPlayerId !== playerId) {
-      return { valid: false, error: 'Not your turn' };
-    }
-    
-    const player = state.players.find(p => p.id === playerId);
-    if (!player) {
-      return { valid: false, error: 'Player not found' };
-    }
-    
-    const card = action.cardIds && player.cards.find(c => c.id === action.cardIds[0]);
-    if (!card) {
-      return { valid: false, error: 'Card not found' };
-    }
-    
-    // 更多验证逻辑...
-    return { valid: true };
-  }
-  
-  execute(ctx: ActionContext): GameState {
-    const { state, playerId, action } = ctx;
-    // 实现出牌逻辑
-    // 这里简化处理，实际应该移动完整的出牌逻辑
-    return state;
-  }
-}
-
-class DrawCardHandler implements ActionHandler {
-  readonly type = 'draw';
-  
-  canHandle(): boolean {
-    return true;
-  }
-  
-  validate(ctx: ActionContext): { valid: boolean; error?: string } {
-    if (ctx.state.currentPlayerId !== ctx.playerId) {
-      return { valid: false, error: 'Not your turn' };
-    }
-    return { valid: true };
-  }
-  
-  execute(ctx: ActionContext): GameState {
-    const { state, playerId } = ctx;
-    const newState = { ...state };
-    
-    // 实现摸牌逻辑
-    // 这里简化处理
-    
-    return newState;
-  }
-}
-
-// 其他处理器占位符
-class SkipTurnHandler implements ActionHandler {
-  readonly type = 'skip';
-  canHandle(): boolean { return true; }
-  validate(): { valid: boolean } { return { valid: true }; }
-  execute(ctx: ActionContext): GameState { return ctx.state; }
-}
-
-class CallUnoHandler implements ActionHandler {
-  readonly type = 'uno';
-  canHandle(): boolean { return true; }
-  validate(): { valid: boolean } { return { valid: true }; }
-  execute(ctx: ActionContext): GameState { return ctx.state; }
-}
-
-class ChallengeHandler implements ActionHandler {
-  readonly type = 'challenge';
-  canHandle(): boolean { return true; }
-  validate(): { valid: boolean } { return { valid: true }; }
-  execute(ctx: ActionContext): GameState { return ctx.state; }
-}
-
-class JumpInHandler implements ActionHandler {
-  readonly type = 'jumpIn';
-  canHandle(): boolean { return true; }
-  validate(): { valid: boolean } { return { valid: true }; }
-  execute(ctx: ActionContext): GameState { return ctx.state; }
-}
-
-class PlayReverseHandler implements ActionHandler {
-  readonly type = 'reverse';
-  canHandle(): boolean { return true; }
-  validate(): { valid: boolean } { return { valid: true }; }
-  execute(ctx: ActionContext): GameState { return ctx.state; }
 }
