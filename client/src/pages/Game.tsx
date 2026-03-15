@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Users, ArrowRight, Volume2, VolumeX, LogOut, Trophy, Ban } from 'lucide-react';
 import { Card, ColorPicker } from '../components/Card';
@@ -38,6 +38,7 @@ export function Game({
   const [handSortMode, setHandSortMode] = useState<'color' | 'number' | 'smart'>('smart');
   const [showUnoButton, setShowUnoButton] = useState(false);
   const [skipNotification, setSkipNotification] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
+  const lastSkippedIdRef = useRef<string | null>(null); // 防止重复显示跳过提示
 
   const currentPlayer = gameState.players?.find(p => p.id === currentPlayerId) || room.players.find(p => p.id === currentPlayerId);
   const isMyTurn = gameState.currentPlayerId === currentPlayerId;
@@ -142,13 +143,15 @@ export function Game({
     }
   }, [currentPlayer?.cardCount, currentPlayer?.hasCalledUno]);
 
-  // 检测被跳过提示
+  // 检测被跳过提示 - 使用 ref 防止重复显示
   useEffect(() => {
-    if (gameState.skippedPlayerId === currentPlayerId) {
+    if (gameState.skippedPlayerId === currentPlayerId && lastSkippedIdRef.current !== gameState.skippedPlayerId) {
+      lastSkippedIdRef.current = gameState.skippedPlayerId;
       setSkipNotification({ show: true, message: '🚫 你被跳过了！' });
       // 2秒后自动隐藏
       const timer = setTimeout(() => {
         setSkipNotification({ show: false, message: '' });
+        lastSkippedIdRef.current = null; // 清除记录，允许下次显示
       }, 2000);
       return () => clearTimeout(timer);
     }
