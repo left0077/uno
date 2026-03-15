@@ -74,13 +74,28 @@ export function setupSocketHandlers(io: Server): void {
       console.log('Client disconnected:', socket.id, 'userId:', userId);
       
       if (userId) {
-        // 标记玩家断开连接（不移除，支持重连）
-        const room = roomManager.markPlayerDisconnected(userId);
+        const room = roomManager.getPlayerRoom(userId);
+        
         if (room) {
-          // 广播玩家断开状态
-          io.to(room.code).emit(SocketEvents.ROOM_UPDATED, room);
-          console.log(`Player ${userId} disconnected from room ${room.code}`);
+          if (room.status === 'waiting') {
+            // 等待状态：直接移除玩家，不需要重连
+            const updatedRoom = roomManager.leaveRoom(userId);
+            if (updatedRoom) {
+              socket.leave(room.code);
+              socket.to(room.code).emit(SocketEvents.PLAYER_LEFT, { playerId: userId });
+              io.to(room.code).emit(SocketEvents.ROOM_UPDATED, updatedRoom);
+              console.log(`Player ${userId} left room ${room.code} (waiting status)`);
+            }
+          } else {
+            // 游戏进行中：标记断开连接，支持重连
+            const updatedRoom = roomManager.markPlayerDisconnected(userId);
+            if (updatedRoom) {
+              io.to(room.code).emit(SocketEvents.ROOM_UPDATED, updatedRoom);
+              console.log(`Player ${userId} disconnected from room ${room.code} (playing status, can reconnect)`);
+            }
+          }
         }
+        
         socketUserMap.delete(socket.id);
       }
     });
