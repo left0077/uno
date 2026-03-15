@@ -448,32 +448,34 @@ export function Game({
           </div>
         </div>
 
-        {/* 聊天消息显示 */}
-        <AnimatePresence>
-          {chatMessages.slice(-3).map((msg, index) => (
-            <motion.div
-              key={`${msg.timestamp}-${index}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-center py-1"
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/80 rounded-full">
-                <span className="text-sm text-slate-400">{msg.playerName}</span>
-                <span className="text-2xl">{msg.content}</span>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {/* 聊天消息显示 - 移到左侧不遮挡牌堆 */}
+        <div className="fixed left-4 bottom-32 z-30 flex flex-col gap-2 pointer-events-none">
+          <AnimatePresence>
+            {chatMessages.slice(-3).map((msg, index) => (
+              <motion.div
+                key={`${msg.timestamp}-${index}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="pointer-events-auto"
+              >
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/90 border border-slate-700/50 rounded-lg shadow-lg">
+                  <span className="text-xs text-slate-400">{msg.playerName}</span>
+                  <span className="text-lg">{msg.content}</span>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
 
-        {/* 被跳过提示 */}
+        {/* 被跳过提示 - 移到顶部中央 */}
         <AnimatePresence>
           {skipNotification.show && (
             <motion.div
               initial={{ opacity: 0, y: -20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.9 }}
-              className="text-center py-2"
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className="fixed top-20 left-1/2 -translate-x-1/2 z-40"
             >
               <div className="inline-flex items-center gap-2 px-6 py-3 bg-red-500/20 border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/20">
                 <Ban className="w-6 h-6 text-red-400" />
@@ -483,11 +485,11 @@ export function Game({
           )}
         </AnimatePresence>
 
-        {/* 无牌可出大提示 */}
+        {/* 无牌可出提示 - 移到牌堆上方 */}
         {isMyTurn && playableCards.size === 0 && (
-          <div className="text-center py-2">
-            <div className="inline-block px-6 py-2 bg-yellow-500/20 border-2 border-yellow-500 rounded-lg">
-              <span className="text-xl font-bold text-yellow-400">👆 无牌可出，请点击牌堆摸牌</span>
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-[280px] z-30">
+            <div className="inline-block px-4 py-2 bg-yellow-500/20 border-2 border-yellow-500 rounded-lg animate-pulse">
+              <span className="text-lg font-bold text-yellow-400">👆 无牌可出，点击牌堆摸牌</span>
             </div>
           </div>
         )}
