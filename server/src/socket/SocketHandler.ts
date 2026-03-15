@@ -225,7 +225,7 @@ export function setupSocketHandlers(io: Server): void {
           io.to(data.roomCode).emit(SocketEvents.GAME_STATE, state);
         },
         (winner) => {
-          // 获取完整的排名信息
+          // 游戏结束处理
           const rankings = room.gameState?.rankings || [winner.id];
           const rankedPlayers = rankings.map((playerId, index) => {
             const player = room.players.find(p => p.id === playerId);
@@ -239,18 +239,29 @@ export function setupSocketHandlers(io: Server): void {
           io.to(data.roomCode).emit('game:ended', { winner, rankings: rankedPlayers });
           activeGames.delete(data.roomCode);
           
-          // 重置房间状态，允许开始新游戏
+          // 重置房间状态
           room.status = 'waiting';
           room.gameState = undefined;
-          // 清空玩家手牌和UNO状态，但保留房主身份
           room.players.forEach(p => {
             p.cards = [];
             p.cardCount = 0;
             p.hasCalledUno = false;
-            // 注意：不要修改isHost和hostId
           });
           io.to(data.roomCode).emit(SocketEvents.ROOM_UPDATED, room);
           console.log(`Game ended in room: ${data.roomCode}, reset to waiting`);
+        },
+        // AI 发送消息回调
+        (playerId, type, content) => {
+          const player = room.players.find(p => p.id === playerId);
+          if (player) {
+            io.to(data.roomCode).emit(SocketEvents.RECEIVE_MESSAGE, {
+              type,
+              content,
+              playerId,
+              playerName: player.nickname,
+              timestamp: Date.now()
+            });
+          }
         }
       );
       

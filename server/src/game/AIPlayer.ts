@@ -230,4 +230,35 @@ export class AIPlayer {
         return 2000;
     }
   }
+  
+  // AI 表情库
+  private static readonly EMOJIS = {
+    // 嘲讽类（出完牌、让对手摸牌时）
+    taunt: ['😎', '😏', '🤭', '😂', '👻', '🎉'],
+    // 挑衅类（出功能牌时）
+    provocation: ['😈', '🔥', '💀', '⚡', '🎯'],
+    // 无奈类（被加牌、摸牌时）
+    helpless: ['😭', '😫', '🤦', '😅', '🥺'],
+    // 胜利类（快赢时）
+    victory: ['🏆', '👑', '🥇', '✨', '🎊'],
+    // 通用
+    common: ['👍', '👎', '❤️', '🤮', '💩']
+  };
+  
+  // 获取 AI 表情（根据情境）
+  static getEmoji(
+    situation: 'taunt' | 'provocation' | 'helpless' | 'victory' | 'common',
+    playerCardCount: number
+  ): string | null {
+    // 30% 概率发送表情
+    if (Math.random() > 0.3) return null;
+    
+    // 如果快赢了（只剩1-2张牌），增加胜利表情概率
+    if (playerCardCount <= 2) {
+      situation = 'victory';
+    }
+    
+    const emojis = this.EMOJIS[situation];
+    return emojis[Math.floor(Math.random() * emojis.length)];
+  }
 }

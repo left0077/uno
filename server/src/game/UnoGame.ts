@@ -9,15 +9,18 @@ export class UnoGame {
   private turnTimer: NodeJS.Timeout | null = null;
   private onStateChange: (state: GameState) => void;
   private onGameEnd: (winner: Player) => void;
+  private onSendMessage?: (playerId: string, type: 'emoji' | 'text', content: string) => void;
   
   constructor(
     room: Room,
     onStateChange: (state: GameState) => void,
-    onGameEnd: (winner: Player) => void
+    onGameEnd: (winner: Player) => void,
+    onSendMessage?: (playerId: string, type: 'emoji' | 'text', content: string) => void
   ) {
     this.room = room;
     this.onStateChange = onStateChange;
     this.onGameEnd = onGameEnd;
+    this.onSendMessage = onSendMessage;
     
     // 初始化游戏状态
     const deck = CardManager.createDeck();
@@ -169,8 +172,29 @@ export class UnoGame {
       if (!action) return;
       
       if (action.type === 'play' && action.cardId) {
+        const card = botPlayer.cards.find(c => c.id === action.cardId);
+        
+        // AI 出牌前发送表情嘲讽（30%概率）
+        if (this.onSendMessage) {
+          const situation = card && (card.type === 'draw2' || card.type === 'draw4' || card.type === 'skip') 
+            ? 'provocation' 
+            : 'taunt';
+          const emoji = AIPlayer.getEmoji(situation, botPlayer.cardCount - 1);
+          if (emoji) {
+            this.onSendMessage(botPlayer.id, 'emoji', emoji);
+          }
+        }
+        
         this.playCard(botPlayer.id, action.cardId, action.chosenColor);
       } else if (action.type === 'draw') {
+        // 机器人摸牌前发送表情（无奈）
+        if (this.onSendMessage) {
+          const emoji = AIPlayer.getEmoji('helpless', botPlayer.cardCount + 1);
+          if (emoji) {
+            this.onSendMessage(botPlayer.id, 'emoji', emoji);
+          }
+        }
+        
         // 机器人摸牌并结束回合
         // 如果有连打惩罚，摸累积的牌；否则摸1张
         const drawCount = this.gameState.pendingDraw || 1;
