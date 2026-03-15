@@ -22,6 +22,7 @@ interface UseSocketReturn extends SocketState {
   challengeUno: (roomCode: string, targetId: string) => void;
   jumpIn: (roomCode: string, cardId: string) => void;
   updateSettings: (roomCode: string, settings: Partial<RoomSettings>) => void;
+  reconnect: (roomCode: string, playerId: string) => void;
 }
 
 export function useSocket(
@@ -203,6 +204,10 @@ export function useSocket(
     socketRef.current?.emit('room:updateSettings', { roomCode, settings });
   }, []);
 
+  const reconnect = useCallback((roomCode: string, playerId: string) => {
+    socketRef.current?.emit('player:reconnect', { roomCode, playerId });
+  }, []);
+
   return {
     socket: socketRef.current,
     ...state,
@@ -217,6 +222,7 @@ export function useSocket(
     callUno,
     challengeUno,
     jumpIn,
-    updateSettings
+    updateSettings,
+    reconnect
   };
 }

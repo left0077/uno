@@ -112,6 +112,8 @@ function App() {
     console.error('Socket error:', error);
   }, [store]);
 
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  
   const socket = useSocket(
     store.serverUrl,
     handleRoomCreated,
@@ -124,6 +126,43 @@ function App() {
     handleGameEnded,
     handleError
   );
+  
+  // 断线重连处理
+  useEffect(() => {
+    // 如果 socket 重新连接成功，且之前有房间状态，尝试重连
+    if (socket.isConnected && store.currentRoom && !isReconnecting) {
+      const playerId = localStorage.getItem('uno-player-id');
+      if (playerId && (page === 'room' || page === 'game')) {
+        // 检查自己是否在游戏中且状态为断开
+        const player = store.currentRoom.players.find(p => p.id === playerId);
+        if (player && !player.isConnected) {
+          setIsReconnecting(true);
+          socket.reconnect(store.currentRoom.code, playerId);
+        }
+      }
+    }
+  }, [socket.isConnected, store.currentRoom, page, socket, isReconnecting]);
+  
+  // 处理重连成功
+  useEffect(() => {
+    const handleReconnected = (data: { success: boolean; room: RoomType; gameState?: GameState }) => {
+      if (data.success) {
+        setIsReconnecting(false);
+        store.setCurrentRoom(data.room);
+        if (data.gameState) {
+          store.setGameState(data.gameState);
+          setPage('game');
+        } else {
+          setPage('room');
+        }
+      }
+    };
+    
+    socket.socket?.on('player:reconnected', handleReconnected);
+    return () => {
+      socket.socket?.off('player:reconnected', handleReconnected);
+    };
+  }, [socket.socket, store]);
 
   const handleCreateRoom = useCallback(() => {
     socket.createRoom(store.nickname);
@@ -182,12 +221,39 @@ function App() {
 
   // 获取当前玩家ID
   const currentPlayerId = localStorage.getItem('uno-player-id') || '';
+  
+  // 断线提示组件
+  const ConnectionStatus = () => {
+    if (!socket.isConnected && (page === 'room' || page === 'game')) {
+      return (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/90 text-yellow-900 px-4 py-2 text-center text-sm font-medium">
+          {isReconnecting ? '正在重新连接...' : '连接已断开，正在尝试重连...'}
+          {!isReconnecting && (
+            <button 
+              onClick={() => {
+                const playerId = localStorage.getItem('uno-player-id');
+                if (playerId && store.currentRoom) {
+                  setIsReconnecting(true);
+                  socket.reconnect(store.currentRoom.code, playerId);
+                }
+              }}
+              className="ml-2 underline hover:text-yellow-700"
+            >
+              立即重连
+            </button>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
 
   // 渲染当前页面
   switch (page) {
     case 'home':
       return (
         <>
+          <ConnectionStatus />
           <Home
             nickname={store.nickname}
             setNickname={store.setNickname}
@@ -214,7 +280,9 @@ function App() {
         return null;
       }
       return (
-        <Room
+        <>
+          <ConnectionStatus />
+          <Room
           room={store.currentRoom}
           currentPlayerId={currentPlayerId}
           onLeaveRoom={handleLeaveRoom}
@@ -225,6 +293,7 @@ function App() {
           onUpdateSettings={handleUpdateSettings}
           error={store.error}
         />
+        </>
       );
 
     case 'game':
@@ -233,7 +302,9 @@ function App() {
         return null;
       }
       return (
-        <Game
+        <>
+          <ConnectionStatus />
+          <Game
           room={store.currentRoom}
           gameState={store.gameState}
           currentPlayerId={currentPlayerId}
@@ -256,6 +327,7 @@ function App() {
           onJumpIn={handleJumpIn}
           onLeaveGame={handleLeaveRoom}
         />
+        </>
       );
 
     default:

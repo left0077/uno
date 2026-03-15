@@ -57,20 +57,50 @@ export function setupSocketHandlers(io: Server): void {
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
       
-      // 先处理玩家离开房间（这会触发房主转让）
-      const updatedRoom = roomManager.leaveRoom(socket.id);
-      if (updatedRoom) {
-        // 如果游戏正在进行，清理游戏实例
-        if (updatedRoom.status === 'playing' && activeGames.has(updatedRoom.code)) {
-          const game = activeGames.get(updatedRoom.code)!;
-          game.destroy();
-          activeGames.delete(updatedRoom.code);
-          console.log(`Game destroyed for room: ${updatedRoom.code}`);
-        }
-        
-        io.to(updatedRoom.code).emit(SocketEvents.PLAYER_LEFT, { playerId: socket.id });
-        io.to(updatedRoom.code).emit(SocketEvents.ROOM_UPDATED, updatedRoom);
+      // 标记玩家断开连接（不移除，支持重连）
+      const room = roomManager.markPlayerDisconnected(socket.id);
+      if (room) {
+        // 广播玩家断开状态
+        io.to(room.code).emit(SocketEvents.ROOM_UPDATED, room);
+        console.log(`Player ${socket.id} disconnected from room ${room.code}`);
       }
+    });
+    
+    // 重新连接（断线重连）
+    socket.on('player:reconnect', (data: { roomCode: string; playerId: string }) => {
+      const room = roomManager.getRoom(data.roomCode);
+      if (!room) {
+        socket.emit(SocketEvents.ERROR, { code: 'ROOM_NOT_FOUND', message: '房间不存在' });
+        return;
+      }
+      
+      // 查找断开的玩家
+      const player = room.players.find(p => p.id === data.playerId && !p.isConnected);
+      if (!player) {
+        socket.emit(SocketEvents.ERROR, { code: 'PLAYER_NOT_FOUND', message: '玩家不存在或已重新连接' });
+        return;
+      }
+      
+      // 更新玩家信息
+      player.isConnected = true;
+      player.disconnectedAt = undefined;
+      
+      // 更新 playerRoomMap
+      roomManager.updatePlayerRoomMap(data.playerId, data.roomCode);
+      
+      // 加入房间
+      socket.join(data.roomCode);
+      
+      // 返回房间和游戏状态
+      socket.emit('player:reconnected', {
+        success: true,
+        room,
+        gameState: room.gameState
+      });
+      
+      // 广播玩家重连
+      io.to(data.roomCode).emit(SocketEvents.ROOM_UPDATED, room);
+      console.log(`Player ${data.playerId} reconnected to room ${data.roomCode}`);
     });
     
     // ========== AI管理 ==========

@@ -252,18 +252,25 @@ export class RoomManager {
   }
   
   // 标记玩家断开连接
-  markPlayerDisconnected(playerId: string): void {
+  markPlayerDisconnected(playerId: string): Room | null {
     const roomCode = this.playerRoomMap.get(playerId);
-    if (!roomCode) return;
+    if (!roomCode) return null;
     
     const room = this.rooms.get(roomCode);
-    if (!room) return;
+    if (!room) return null;
     
     const player = room.players.find(p => p.id === playerId);
     if (player) {
       player.isConnected = false;
       player.disconnectedAt = Date.now();
     }
+    
+    return room;
+  }
+  
+  // 更新玩家房间映射（用于重连）
+  updatePlayerRoomMap(playerId: string, roomCode: string): void {
+    this.playerRoomMap.set(playerId, roomCode);
   }
 }
 
