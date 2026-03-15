@@ -77,11 +77,12 @@ export function SettingsModal({ isOpen, onClose, serverUrl, onSave, onReset }: S
           
           {/* 弹窗 */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 flex items-center justify-center p-4 z-50"
           >
+            <div className="w-full max-w-md">
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden mx-4">
               {/* 头部 */}
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between">
@@ -185,6 +186,7 @@ export function SettingsModal({ isOpen, onClose, serverUrl, onSave, onReset }: S
                   修改服务器地址后，页面将重新连接
                 </div>
               </div>
+            </div>
             </div>
           </motion.div>
         </>
