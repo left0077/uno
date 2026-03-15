@@ -4,8 +4,8 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  // GitHub Pages 部署时取消下面这行的注释，并替换为仓库名
-  // base: '/Kimi_Uno/',
+  // GitHub Pages 部署配置
+  base: '/uno/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
