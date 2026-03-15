@@ -128,14 +128,24 @@ export class RoomManager {
     if (room.status !== 'waiting') return null;
     if (room.players.length >= room.maxPlayers) return null;
     
-    // 根据类型选择名字
-    const botNames = ['机器人小明', '机器人小红', '机器人小蓝', '机器人小绿', '机器人小黄', '机器人小紫'];
-    const hostNames = ['托管玩家1', '托管玩家2', '托管玩家3'];
+    // 网络特色名字 - 机器人
+    const botNames = [
+      '躺平青年', '内卷之王', '蚌埠住了', '绝绝子', 'YYDS', 
+      '小丑竟是我自己', '社恐患者', '摸鱼大师', '真香警告', '打工人',
+      '退退退', '孤勇者', '潘周聃', '羊了个羊', '好家伙',
+      '奥利给', '格局小了', 'emo了', '破防了', '栓Q',
+      '芭比Q了', '凡尔赛', '不讲武德', '耗子尾汁', '芜湖起飞'
+    ];
+    // 网络特色名字 - 托管
+    const hostNames = [
+      '已黑化', '废柴本柴', '早八人', '尾款人', '干饭人',
+      '工具人', '柠檬精', '云玩家', '键盘侠', '白嫖党'
+    ];
     const usedNames = new Set(room.players.map(p => p.nickname));
     
     const namePool = aiType === 'bot' ? botNames : hostNames;
     const availableName = namePool.find(name => !usedNames.has(name)) || 
-                          `${aiType === 'bot' ? '机器人' : '托管'}${room.players.length}`;
+                          `网友${room.players.length}号`;
     
     const aiPlayer: Player = {
       id: `ai-${uuidv4()}`,
