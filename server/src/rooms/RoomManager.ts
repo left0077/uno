@@ -174,7 +174,9 @@ export class RoomManager {
     const usedNames = new Set(room.players.map(p => p.nickname));
     
     const namePool = aiType === 'bot' ? botNames : hostNames;
-    const availableName = namePool.find(name => !usedNames.has(name)) || 
+    // 随机打乱名字池，然后找一个未被使用的
+    const shuffledNames = [...namePool].sort(() => Math.random() - 0.5);
+    const availableName = shuffledNames.find(name => !usedNames.has(name)) || 
                           `网友${room.players.length}号`;
     
     const aiPlayer: Player = {
