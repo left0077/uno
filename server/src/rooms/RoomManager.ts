@@ -198,13 +198,37 @@ export class RoomManager {
     return true;
   }
   
-  // 清理过期房间（30分钟无活动，或游戏已结束）
+  // 清理过期房间（30分钟无活动，或游戏已结束，或房间为空）
   cleanupExpiredRooms(): void {
     const now = Date.now();
     const expiredRooms: string[] = [];
     
     this.rooms.forEach((room, code) => {
-      // 修复4：清理waiting和finished状态的房间
+      // 1. 房间为空，立即删除
+      if (room.players.length === 0) {
+        expiredRooms.push(code);
+        return;
+      }
+      
+      // 2. 检查是否全是AI（没有真人玩家），立即删除
+      const hasHumanPlayer = room.players.some(p => !p.isAI);
+      if (!hasHumanPlayer) {
+        expiredRooms.push(code);
+        return;
+      }
+      
+      // 3. 检查是否有玩家断开连接超过5分钟
+      const disconnectedPlayers = room.players.filter(p => !p.isConnected && p.disconnectedAt);
+      const allDisconnected = room.players.length > 0 && disconnectedPlayers.length === room.players.length;
+      const allDisconnectedExpired = allDisconnected && disconnectedPlayers.every(p => 
+        p.disconnectedAt && now - p.disconnectedAt > 5 * 60 * 1000
+      );
+      if (allDisconnectedExpired) {
+        expiredRooms.push(code);
+        return;
+      }
+      
+      // 4. 30分钟过期的房间
       const isExpired = now - room.createdAt > 30 * 60 * 1000;
       const shouldCleanup = (room.status === 'waiting' || room.status === 'finished') && isExpired;
       
@@ -218,10 +242,28 @@ export class RoomManager {
       if (room) {
         room.players.forEach(p => this.playerRoomMap.delete(p.id));
         this.rooms.delete(code);
+        console.log(`Room ${code} cleaned up`);
       }
     });
     
-    console.log(`Cleaned up ${expiredRooms.length} expired rooms`);
+    if (expiredRooms.length > 0) {
+      console.log(`Cleaned up ${expiredRooms.length} rooms`);
+    }
+  }
+  
+  // 标记玩家断开连接
+  markPlayerDisconnected(playerId: string): void {
+    const roomCode = this.playerRoomMap.get(playerId);
+    if (!roomCode) return;
+    
+    const room = this.rooms.get(roomCode);
+    if (!room) return;
+    
+    const player = room.players.find(p => p.id === playerId);
+    if (player) {
+      player.isConnected = false;
+      player.disconnectedAt = Date.now();
+    }
   }
 }
 
