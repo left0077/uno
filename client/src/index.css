@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-background: #0f172a;
+    --color-surface: #1e293b;
+    --color-text: #f8fafc;
+    --color-text-muted: #94a3b8;
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    @apply bg-[#0f172a] text-white antialiased;
+    font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .card-glow {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  }
+  
+  .card-selected {
+    transform: translateY(-20px) scale(1.05);
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.4);
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+}

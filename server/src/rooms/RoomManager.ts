@@ -1,0 +1,229 @@
+import { Room, Player, RoomSettings } from '../shared/index.js';
+import { v4 as uuidv4 } from 'uuid';
+
+export class RoomManager {
+  private rooms: Map<string, Room> = new Map();
+  private playerRoomMap: Map<string, string> = new Map();
+  
+  // 生成4位房间号
+  private generateRoomCode(): string {
+    let code: string;
+    do {
+      code = Math.floor(1000 + Math.random() * 9000).toString();
+    } while (this.rooms.has(code));
+    return code;
+  }
+  
+  // 创建房间
+  createRoom(hostId: string, hostNickname: string, settings?: Partial<RoomSettings>): Room {
+    const code = this.generateRoomCode();
+    const room: Room = {
+      id: uuidv4(),
+      code,
+      players: [{
+        id: hostId,
+        nickname: hostNickname,
+        isHost: true,
+        isAI: false,
+        cards: [],
+        cardCount: 0,
+        isConnected: true,
+        isReady: false
+      }],
+      status: 'waiting',
+      hostId,
+      maxPlayers: 8,
+      createdAt: Date.now(),
+      settings: {
+        allowStacking: true,
+        allowMultipleCards: true,
+        allowJumpIn: true,
+        scoringMode: true,
+        ...settings
+      }
+    };
+    
+    this.rooms.set(code, room);
+    this.playerRoomMap.set(hostId, code);
+    
+    return room;
+  }
+  
+  // 加入房间
+  joinRoom(roomCode: string, playerId: string, nickname: string): Room | null {
+    const room = this.rooms.get(roomCode);
+    if (!room) return null;
+    if (room.status !== 'waiting') return null;
+    if (room.players.length >= room.maxPlayers) return null;
+    if (room.players.some(p => p.id === playerId)) return room;
+    
+    const player: Player = {
+      id: playerId,
+      nickname,
+      isHost: false,
+      isAI: false,
+      cards: [],
+      cardCount: 0,
+      isConnected: true,
+      isReady: false
+    };
+    
+    room.players.push(player);
+    this.playerRoomMap.set(playerId, roomCode);
+    
+    return room;
+  }
+  
+  // 离开房间
+  leaveRoom(playerId: string): Room | null {
+    const roomCode = this.playerRoomMap.get(playerId);
+    if (!roomCode) return null;
+    
+    const room = this.rooms.get(roomCode);
+    if (!room) return null;
+    
+    room.players = room.players.filter(p => p.id !== playerId);
+    this.playerRoomMap.delete(playerId);
+    
+    // 如果房主离开，转让房主
+    if (room.hostId === playerId && room.players.length > 0) {
+      const firstHuman = room.players.find(p => !p.isAI);
+      if (firstHuman) {
+        room.hostId = firstHuman.id;
+        // 先清除所有玩家的isHost，再设置新房主
+        room.players.forEach(p => p.isHost = false);
+        firstHuman.isHost = true;
+      } else {
+        // 全是AI，解散房间
+        this.rooms.delete(roomCode);
+        return null;
+      }
+    }
+    
+    // 房间空了，删除房间
+    if (room.players.length === 0) {
+      this.rooms.delete(roomCode);
+      return null;
+    }
+    
+    return room;
+  }
+  
+  // 获取房间
+  getRoom(roomCode: string): Room | undefined {
+    return this.rooms.get(roomCode);
+  }
+  
+  // 获取玩家所在房间
+  getPlayerRoom(playerId: string): Room | undefined {
+    const roomCode = this.playerRoomMap.get(playerId);
+    if (!roomCode) return undefined;
+    return this.rooms.get(roomCode);
+  }
+  
+  // 添加AI
+  addAI(roomCode: string, difficulty: 'easy' | 'normal' | 'hard', aiType: 'bot' | 'host' = 'bot'): Player | null {
+    const room = this.rooms.get(roomCode);
+    if (!room) return null;
+    if (room.status !== 'waiting') return null;
+    if (room.players.length >= room.maxPlayers) return null;
+    
+    // 根据类型选择名字
+    const botNames = ['机器人小明', '机器人小红', '机器人小蓝', '机器人小绿', '机器人小黄', '机器人小紫'];
+    const hostNames = ['托管玩家1', '托管玩家2', '托管玩家3'];
+    const usedNames = new Set(room.players.map(p => p.nickname));
+    
+    const namePool = aiType === 'bot' ? botNames : hostNames;
+    const availableName = namePool.find(name => !usedNames.has(name)) || 
+                          `${aiType === 'bot' ? '机器人' : '托管'}${room.players.length}`;
+    
+    const aiPlayer: Player = {
+      id: `ai-${uuidv4()}`,
+      nickname: availableName,
+      isHost: false,
+      isAI: true,
+      aiType, // 'bot'=机器人(立即出牌), 'host'=托管
+      aiDifficulty: difficulty,
+      cards: [],
+      cardCount: 0,
+      isConnected: true,
+      isReady: true
+    };
+    
+    room.players.push(aiPlayer);
+    return aiPlayer;
+  }
+  
+  // 移除AI
+  removeAI(roomCode: string, aiId: string): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room) return false;
+    if (room.status !== 'waiting') return false;
+    
+    const aiIndex = room.players.findIndex(p => p.id === aiId && p.isAI);
+    if (aiIndex === -1) return false;
+    
+    room.players.splice(aiIndex, 1);
+    return true;
+  }
+  
+  // 踢出玩家（房主权限）
+  kickPlayer(roomCode: string, targetId: string, hostId: string): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room) return false;
+    if (room.hostId !== hostId) return false;
+    if (room.status !== 'waiting') return false;
+    
+    const target = room.players.find(p => p.id === targetId);
+    if (!target) return false;
+    if (target.isHost) return false;
+    
+    room.players = room.players.filter(p => p.id !== targetId);
+    this.playerRoomMap.delete(targetId);
+    
+    return true;
+  }
+  
+  // 更新房间设置（房主权限，仅限waiting状态）
+  updateSettings(roomCode: string, hostId: string, settings: Partial<RoomSettings>): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room) return false;
+    if (room.hostId !== hostId) return false;
+    if (room.status !== 'waiting') return false;
+    
+    room.settings = {
+      ...room.settings,
+      ...settings
+    };
+    return true;
+  }
+  
+  // 清理过期房间（30分钟无活动，或游戏已结束）
+  cleanupExpiredRooms(): void {
+    const now = Date.now();
+    const expiredRooms: string[] = [];
+    
+    this.rooms.forEach((room, code) => {
+      // 修复4：清理waiting和finished状态的房间
+      const isExpired = now - room.createdAt > 30 * 60 * 1000;
+      const shouldCleanup = (room.status === 'waiting' || room.status === 'finished') && isExpired;
+      
+      if (shouldCleanup) {
+        expiredRooms.push(code);
+      }
+    });
+    
+    expiredRooms.forEach(code => {
+      const room = this.rooms.get(code);
+      if (room) {
+        room.players.forEach(p => this.playerRoomMap.delete(p.id));
+        this.rooms.delete(code);
+      }
+    });
+    
+    console.log(`Cleaned up ${expiredRooms.length} expired rooms`);
+  }
+}
+
+// 单例实例
+export const roomManager = new RoomManager();
