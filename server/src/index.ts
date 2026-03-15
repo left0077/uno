@@ -22,6 +22,15 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
+// 根路径
+app.get('/', (_req: Request, res: Response) => {
+  res.json({ 
+    message: 'UNO Game Server is running!',
+    health: '/health',
+    version: '1.0.0'
+  });
+});
+
 // 健康检查
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ 
