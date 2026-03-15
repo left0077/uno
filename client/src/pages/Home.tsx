@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Gamepad2, Plus, LogIn, Users, Settings } from 'lucide-react';
 
 interface HomeProps {
@@ -24,6 +24,16 @@ export function Home({
 }: HomeProps) {
   const [roomCode, setRoomCode] = useState('');
   const [showJoinInput, setShowJoinInput] = useState(false);
+  
+  // 检查是否有邀请链接的房间号
+  useEffect(() => {
+    const inviteRoom = localStorage.getItem('uno-invite-room');
+    if (inviteRoom) {
+      setRoomCode(inviteRoom);
+      setShowJoinInput(true);
+      localStorage.removeItem('uno-invite-room');
+    }
+  }, []);
 
   const handleCreateRoom = () => {
     if (!nickname.trim()) {

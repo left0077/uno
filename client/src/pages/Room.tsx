@@ -9,7 +9,8 @@ import {
   MessageSquare,
   Copy,
   Check,
-  Settings
+  Settings,
+  Link2
 } from 'lucide-react';
 import type { Room as RoomType, Player, RoomSettings } from '../../../shared/types';
 
@@ -49,6 +50,7 @@ export function Room({
   error
 }: RoomProps) {
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [showAddAI, setShowAddAI] = useState(false);
 
   const isHost = room.hostId === currentPlayerId;
@@ -65,6 +67,13 @@ export function Room({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  
+  const handleCopyShareLink = () => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${room.code}`;
+    navigator.clipboard.writeText(shareUrl);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  };
 
   // const currentPlayer = room.players.find(p => p.id === currentPlayerId);
 
@@ -80,6 +89,13 @@ export function Room({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleCopyShareLink}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-600/50 rounded-lg text-blue-400 transition-colors"
+            >
+              {shareCopied ? <Check className="w-4 h-4 text-green-400" /> : <Link2 className="w-4 h-4" />}
+              {shareCopied ? '链接已复制' : '复制邀请链接'}
+            </button>
             <button
               onClick={handleCopyRoomCode}
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors"

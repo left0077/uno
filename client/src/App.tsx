@@ -34,6 +34,19 @@ function App() {
     }
   }, []);
   
+  // 检查 URL 参数，处理分享链接
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomCode = urlParams.get('room');
+    
+    if (roomCode && page === 'home') {
+      // 保存房间号到 localStorage，让 Home 页面读取
+      localStorage.setItem('uno-invite-room', roomCode);
+      // 清除 URL 参数
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [page]);
+  
   const handleRoomCreated = useCallback((room: RoomType) => {
     store.setCurrentRoom(room);
     localStorage.setItem('uno-player-id', room.players[0].id);
