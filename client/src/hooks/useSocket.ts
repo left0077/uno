@@ -24,6 +24,7 @@ interface UseSocketReturn extends SocketState {
   updateSettings: (roomCode: string, settings: Partial<RoomSettings>) => void;
   reconnect: (roomCode: string, playerId: string) => void;
   sendMessage: (roomCode: string, type: 'emoji' | 'text', content: string) => void;
+  toggleHost: (roomCode: string, enabled: boolean) => void;
 }
 
 export function useSocket(
@@ -249,6 +250,10 @@ export function useSocket(
     socketRef.current?.emit('chat:send', { roomCode, type, content });
   }, []);
 
+  const toggleHost = useCallback((roomCode: string, enabled: boolean) => {
+    socketRef.current?.emit('player:toggleHosting', { roomCode, enabled });
+  }, []);
+
   return {
     socket: socketRef.current,
     ...state,
@@ -265,6 +270,7 @@ export function useSocket(
     jumpIn,
     updateSettings,
     reconnect,
-    sendMessage
+    sendMessage,
+    toggleHost
   };
 }

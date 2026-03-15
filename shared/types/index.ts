@@ -110,6 +110,9 @@ export enum SocketEvents {
   ADD_AI = 'ai:add',
   REMOVE_AI = 'ai:remove',
   
+  // 托管
+  TOGGLE_HOSTING = 'player:toggleHosting',
+  
   // 聊天
   SEND_MESSAGE = 'chat:send',
   RECEIVE_MESSAGE = 'chat:receive',

@@ -465,14 +465,45 @@ export class UnoGame {
     
     // 检查该玩家是否已喊UNO
     if (target.hasCalledUno) {
-      // 质疑失败，质疑者罚摸2张
-      this.drawCards(challengerId, 2, true);
+      // 质疑失败，质疑者罚摸2张（不切换回合）
+      this.drawCardsWithoutTurnChange(challengerId, 2);
       return { success: false, message: `${target.nickname}已喊UNO，质疑失败！${challenger.nickname}罚摸2张` };
     } else {
-      // 质疑成功，被质疑者罚摸2张
-      this.drawCards(targetId, 2, true);
+      // 质疑成功，被质疑者罚摸2张（不切换回合）
+      this.drawCardsWithoutTurnChange(targetId, 2);
       return { success: true, message: `${target.nickname}没喊UNO！质疑成功，${target.nickname}罚摸2张` };
     }
+  }
+  
+  // 摸牌但不切换回合（用于质疑惩罚等特殊情况）
+  private drawCardsWithoutTurnChange(playerId: string, count: number): Card[] {
+    const player = this.room.players.find(p => p.id === playerId);
+    if (!player) return [];
+    
+    const drawnCards: Card[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      // 牌堆空了，洗混弃牌堆
+      if (this.gameState.deck.length === 0) {
+        if (this.gameState.discardPile.length <= 1) {
+          break;
+        }
+        const topCard = this.gameState.discardPile.pop();
+        if (!topCard) break;
+        this.gameState.deck = CardManager.shuffleDeck(this.gameState.discardPile);
+        this.gameState.discardPile = [topCard];
+      }
+      
+      const card = this.gameState.deck.pop();
+      if (!card) break;
+      player.cards.push(card);
+      drawnCards.push(card);
+    }
+    
+    player.cardCount = player.cards.length;
+    this.onStateChange(this.gameState);
+    
+    return drawnCards;
   }
   
   // 结束游戏（改为记录排名模式）

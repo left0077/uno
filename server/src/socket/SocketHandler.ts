@@ -380,5 +380,44 @@ export function setupSocketHandlers(io: Server): void {
         timestamp: Date.now()
       });
     });
+    
+    // 切换托管模式
+    socket.on(SocketEvents.TOGGLE_HOSTING, (data: { roomCode: string; enabled: boolean }) => {
+      const room = roomManager.getRoom(data.roomCode);
+      const userId = socketUserMap.get(socket.id) || socket.id;
+      if (!room) {
+        socket.emit(SocketEvents.ERROR, { code: 'ROOM_NOT_FOUND', message: '房间不存在' });
+        return;
+      }
+      
+      const player = room.players.find(p => p.id === userId);
+      if (!player) {
+        socket.emit(SocketEvents.ERROR, { code: 'PLAYER_NOT_FOUND', message: '玩家不在房间中' });
+        return;
+      }
+      
+      // 切换托管状态
+      player.isAI = data.enabled;
+      player.aiType = data.enabled ? 'host' : undefined;
+      
+      // 通知所有玩家状态更新
+      io.to(data.roomCode).emit(SocketEvents.ROOM_UPDATED, room);
+      
+      // 通知当前玩家
+      socket.emit(SocketEvents.ERROR, { 
+        code: 'HOSTING_TOGGLED', 
+        message: data.enabled ? '已开启托管模式，AI将自动帮你出牌' : '已关闭托管模式' 
+      });
+      
+      // 如果当前是托管玩家的回合，触发AI出牌
+      if (data.enabled && room.gameState?.currentPlayerId === userId) {
+        const game = activeGames.get(data.roomCode);
+        if (game) {
+          setTimeout(() => {
+            (game as any).handleBotTurn?.(player);
+          }, 500);
+        }
+      }
+    });
   });
 }

@@ -15,6 +15,7 @@ interface GameProps {
   onJumpIn?: (cardId: string) => void;
   onLeaveGame: () => void;
   onSendEmoji?: (emoji: string) => void;
+  onToggleHost?: (enabled: boolean) => void;
   chatMessages?: ChatMessage[];
 }
 
@@ -29,6 +30,7 @@ export function Game({
   onJumpIn,
   onLeaveGame,
   onSendEmoji,
+  onToggleHost,
   chatMessages = []
 }: GameProps) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export function Game({
   const [showUnoButton, setShowUnoButton] = useState(false);
   const [skipNotification, setSkipNotification] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
   const lastSkippedIdRef = useRef<string | null>(null); // 防止重复显示跳过提示
+  const [isHosting, setIsHosting] = useState(currentPlayer?.isAI || false);
 
   const currentPlayer = gameState.players?.find(p => p.id === currentPlayerId) || room.players.find(p => p.id === currentPlayerId);
   const isMyTurn = gameState.currentPlayerId === currentPlayerId;
@@ -124,19 +127,20 @@ export function Game({
     }
   }, [currentPlayer?.cardCount, currentPlayer?.hasCalledUno]);
 
-  // 检测被跳过提示 - 使用 ref 防止重复显示
+  // 检测被跳过提示 - 轮到自己出牌时自动消除
   useEffect(() => {
+    // 被跳过时显示提示
     if (gameState.skippedPlayerId === currentPlayerId && lastSkippedIdRef.current !== gameState.skippedPlayerId) {
       lastSkippedIdRef.current = gameState.skippedPlayerId;
       setSkipNotification({ show: true, message: '🚫 你被跳过了！' });
-      // 2秒后自动隐藏
-      const timer = setTimeout(() => {
-        setSkipNotification({ show: false, message: '' });
-        lastSkippedIdRef.current = null; // 清除记录，允许下次显示
-      }, 2000);
-      return () => clearTimeout(timer);
     }
-  }, [gameState.skippedPlayerId, currentPlayerId]);
+    
+    // 轮到自己出牌时自动消除提示
+    if (isMyTurn && skipNotification.show) {
+      setSkipNotification({ show: false, message: '' });
+      lastSkippedIdRef.current = null;
+    }
+  }, [gameState.skippedPlayerId, currentPlayerId, isMyTurn, skipNotification.show]);
 
   // 处理出牌
   const handleCardClick = (card: CardType) => {
@@ -263,47 +267,78 @@ export function Game({
         </div>
       </div>
 
-      {/* 其他玩家区域 */}
-      <div className="flex justify-center items-center gap-4 py-4 px-4">
+      {/* 其他玩家区域 - 支持横向滚动 */}
+      <div className="flex justify-start items-center gap-3 py-4 px-4 overflow-x-auto scrollbar-hide">
         {otherPlayers.map((player) => {
           const canChallenge = player.cardCount === 1 && !player.hasCalledUno;
+          const isFinished = player.cardCount === 0; // 已出完牌
+          // 获取该玩家最新的表情消息
+          const playerEmoji = chatMessages
+            .filter(msg => msg.playerId === player.id)
+            .slice(-1)[0];
           return (
             <motion.div 
               key={player.id}
               onClick={() => canChallenge && onChallengeUno?.(player.id)}
-              className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                player.id === gameState.currentPlayerId
-                  ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/20'
-                  : 'bg-slate-800/50 border-slate-700/50'
-              } ${canChallenge ? 'border-red-500 ring-2 ring-red-500/50 cursor-pointer hover:bg-red-900/20' : ''}`}
-              animate={player.id === gameState.currentPlayerId ? {
-                scale: [1, 1.05, 1],
-              } : {}}
-              transition={{ duration: 1, repeat: Infinity }}
-              title={canChallenge ? '点击质疑！' : ''}
+              className="relative flex flex-col items-center"
             >
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
-                player.isAI ? 'bg-purple-600/30 text-purple-400' : 'bg-slate-700'
-              }`}>
-                {player.isAI ? '🤖' : player.nickname.charAt(0).toUpperCase()}
-              </div>
-              <div className="text-center">
-                <div className="text-xs font-medium truncate max-w-[80px]">{player.nickname}</div>
-                <div className={`text-xs ${canChallenge ? 'text-red-400 font-bold animate-pulse' : 'text-slate-400'}`}>
-                  {player.cardCount}张{player.cardCount === 1 && player.hasCalledUno && ' ✓UNO'}
+              {/* 表情显示 - 在头像上方 */}
+              <AnimatePresence>
+                {playerEmoji && (
+                  <motion.div
+                    key={playerEmoji.timestamp}
+                    initial={{ opacity: 0, y: 10, scale: 0.5 }}
+                    animate={{ opacity: 1, y: -8, scale: 1.2 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute -top-8 z-20"
+                  >
+                    <span className="text-3xl drop-shadow-lg filter">{playerEmoji.content}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <motion.div 
+                className={`flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all flex-shrink-0 ${
+                  isFinished
+                    ? 'bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/20'
+                    : player.id === gameState.currentPlayerId
+                      ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/20'
+                      : 'bg-slate-800/50 border-slate-700/50'
+                } ${canChallenge ? 'border-red-500 ring-2 ring-red-500/50 cursor-pointer hover:bg-red-900/20' : ''}`}
+                animate={player.id === gameState.currentPlayerId && !isFinished ? {
+                  scale: [1, 1.05, 1],
+                } : {}}
+                transition={{ duration: 1, repeat: Infinity }}
+                title={canChallenge ? '点击质疑！' : isFinished ? '已获胜！' : ''}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
+                  isFinished
+                    ? 'bg-yellow-500/30 text-yellow-400'
+                    : player.isAI
+                      ? 'bg-purple-600/30 text-purple-400'
+                      : 'bg-slate-700'
+                }`}>
+                  {isFinished ? '👑' : player.isAI ? '🤖' : player.nickname.charAt(0).toUpperCase()}
                 </div>
-              </div>
-              {player.id === gameState.currentPlayerId && (
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-xs">
-                  ▶
+                <div className="text-center">
+                  <div className="text-xs font-medium truncate max-w-[70px] sm:max-w-[80px]">{player.nickname}</div>
+                  <div className={`text-xs ${canChallenge ? 'text-red-400 font-bold animate-pulse' : isFinished ? 'text-yellow-400 font-bold' : 'text-slate-400'}`}>
+                    {isFinished ? '✨ 获胜' : `${player.cardCount}张${player.cardCount === 1 && player.hasCalledUno && ' ✓UNO'}`}
+                  </div>
                 </div>
-              )}
-              {/* 质疑提示 */}
-              {canChallenge && (
-                <div className="absolute -top-2 -right-2 px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full shadow-lg animate-bounce">
-                  质疑!
-                </div>
-              )}
+                {player.id === gameState.currentPlayerId && !isFinished && (
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-xs">
+                    ▶
+                  </div>
+                )}
+                {/* 质疑提示 */}
+                {canChallenge && (
+                  <div className="absolute -top-2 -right-2 px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full shadow-lg animate-bounce">
+                    质疑!
+                  </div>
+                )}
+              </motion.div>
             </motion.div>
           );
         })}
@@ -387,6 +422,29 @@ export function Game({
 
       {/* 手牌区域 */}
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-700/50">
+        {/* 当前玩家表情显示 */}
+        {(() => {
+          const myEmoji = chatMessages
+            .filter(msg => msg.playerId === currentPlayerId)
+            .slice(-1)[0];
+          return (
+            <AnimatePresence>
+              {myEmoji && (
+                <motion.div
+                  key={myEmoji.timestamp}
+                  initial={{ opacity: 0, y: 20, scale: 0.5 }}
+                  animate={{ opacity: 1, y: 0, scale: 1.5 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.8 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute -top-12 left-4 z-20"
+                >
+                  <span className="text-4xl drop-shadow-lg filter">{myEmoji.content}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          );
+        })()}
+        
         {/* 工具栏 - Emoji 区域 */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50">
           {/* 更多 Emoji - 横向滚动 */}
@@ -403,6 +461,19 @@ export function Game({
             ))}
           </div>
           
+          {/* 托管按钮 */}
+          <button
+            onClick={onToggleHost}
+            className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              currentPlayer?.aiType === 'host'
+                ? 'bg-yellow-600 text-yellow-100 border border-yellow-500'
+                : 'bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600'
+            }`}
+            title={currentPlayer?.aiType === 'host' ? '取消托管' : '开启托管'}
+          >
+            {currentPlayer?.aiType === 'host' ? '🤖 托管中' : '🎮 托管'}
+          </button>
+          
           {/* 手牌数量 */}
           <div className="text-sm text-slate-400 flex-shrink-0 ml-2">
             {currentPlayer?.cardCount || 0}张
@@ -412,25 +483,7 @@ export function Game({
           </div>
         </div>
 
-        {/* 聊天消息显示 - 移到左侧不遮挡牌堆 */}
-        <div className="fixed left-4 bottom-32 z-30 flex flex-col gap-2 pointer-events-none">
-          <AnimatePresence>
-            {chatMessages.slice(-3).map((msg, index) => (
-              <motion.div
-                key={`${msg.timestamp}-${index}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="pointer-events-auto"
-              >
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/90 border border-slate-700/50 rounded-lg shadow-lg">
-                  <span className="text-xs text-slate-400">{msg.playerName}</span>
-                  <span className="text-lg">{msg.content}</span>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+        {/* 聊天消息已改为在玩家头像附近显示 */}
 
         {/* 被跳过提示 - 移到顶部中央 */}
         <AnimatePresence>
@@ -499,30 +552,37 @@ export function Game({
           })}
         </div>
 
-        {/* 操作按钮 */}
+        {/* 操作按钮 - 只有UNO按钮 */}
         <div className="flex items-center justify-center gap-4 pb-4">
-          {/* UNO按钮 - 手牌为1时显示 */}
-          {showUnoButton && (
-            <button
-              onClick={() => {
-                onCallUno();
-                setShowUnoButton(false);
-              }}
-              className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-lg rounded-lg shadow-lg shadow-red-600/25 animate-pulse border-2 border-yellow-400"
-            >
-              UNO!
-            </button>
-          )}
           <button
-            onClick={() => selectedCard && handleCardClick(sortedHand.find(c => c.id === selectedCard)!)}
-            disabled={!selectedCard || !playableCards.has(selectedCard) || !isMyTurn}
+            onClick={() => {
+              onCallUno();
+              setShowUnoButton(false);
+            }}
+            disabled={currentPlayer?.cardCount !== 1}
             className={`px-8 py-3 rounded-lg font-bold text-lg transition-all ${
-              selectedCard && playableCards.has(selectedCard) && isMyTurn
-                ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/25'
+              currentPlayer?.cardCount === 1
+                ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/25 animate-pulse border-2 border-yellow-400'
                 : 'bg-slate-700 text-slate-500 cursor-not-allowed'
             }`}
           >
-            出牌
+            UNO!
+          </button>
+          {/* 托管按钮 */}
+          <button
+            onClick={() => {
+              const newState = !isHosting;
+              setIsHosting(newState);
+              onToggleHost?.(newState);
+            }}
+            className={`px-4 py-3 rounded-lg font-bold text-lg transition-all ${
+              isHosting
+                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/25'
+                : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+            }`}
+            title={isHosting ? '关闭托管模式' : '开启托管模式'}
+          >
+            {isHosting ? '🤖 托管中' : '托管'}
           </button>
         </div>
       </div>

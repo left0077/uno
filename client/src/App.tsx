@@ -238,6 +238,12 @@ function App() {
     }
   }, [socket, store.currentRoom]);
 
+  const handleToggleHost = useCallback((enabled: boolean) => {
+    if (store.currentRoom) {
+      socket.toggleHost(store.currentRoom.code, enabled);
+    }
+  }, [socket, store.currentRoom]);
+
   // 使用固定的 userId 作为玩家ID
   const currentPlayerId = store.userId;
   
@@ -345,6 +351,7 @@ function App() {
           onJumpIn={handleJumpIn}
           onLeaveGame={handleLeaveRoom}
           onSendEmoji={handleSendEmoji}
+          onToggleHost={handleToggleHost}
           chatMessages={chatMessages}
         />
         </>
