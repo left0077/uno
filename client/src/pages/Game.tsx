@@ -422,14 +422,14 @@ export function Game({
             ))}
           </div>
           
-          {/* Emoji 快捷发送 - 直接显示一排 */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 px-2 py-1 bg-slate-800/80 rounded-lg">
+          {/* Emoji 快捷发送 - 移动端可横向滚动 */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-1 px-2 py-1 bg-slate-800/80 rounded-lg overflow-x-auto max-w-[180px] sm:max-w-none scrollbar-hide">
               {['👍', '👎', '🔥', '😂', '😭', '😡', '❤️', '🎉', '🤮', '💩'].map((emoji) => (
                 <button
                   key={emoji}
                   onClick={() => onSendEmoji?.(emoji)}
-                  className="text-xl p-1.5 hover:bg-slate-700 rounded-md transition-colors"
+                  className="text-xl p-1.5 hover:bg-slate-700 rounded-md transition-colors flex-shrink-0"
                   title={emoji}
                 >
                   {emoji}
@@ -437,7 +437,7 @@ export function Game({
               ))}
             </div>
             
-            <div className="text-sm text-slate-400">
+            <div className="text-sm text-slate-400 hidden sm:block flex-shrink-0">
               手牌: {currentPlayer?.cardCount || 0}张
               {playableCards.size > 0 ? (
                 <span className="ml-2 text-green-400">({playableCards.size}张可出)</span>
