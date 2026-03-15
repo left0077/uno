@@ -81,10 +81,11 @@ export function setupSocketHandlers(io: Server): void {
             // 等待状态：直接移除玩家，不需要重连
             const updatedRoom = roomManager.leaveRoom(userId);
             if (updatedRoom) {
-              socket.leave(room.code);
-              socket.to(room.code).emit(SocketEvents.PLAYER_LEFT, { playerId: userId });
+              // 先广播事件，再离开房间
               io.to(room.code).emit(SocketEvents.ROOM_UPDATED, updatedRoom);
-              console.log(`Player ${userId} left room ${room.code} (waiting status)`);
+              socket.to(room.code).emit(SocketEvents.PLAYER_LEFT, { playerId: userId });
+              socket.leave(room.code);
+              console.log(`Player ${userId} left room ${room.code} (waiting status), remaining players: ${updatedRoom.players.length}`);
             }
           } else {
             // 游戏进行中：标记断开连接，支持重连
