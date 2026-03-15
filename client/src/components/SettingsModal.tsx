@@ -122,7 +122,7 @@ export function SettingsModal({ isOpen, onClose, serverUrl, onSave, onReset }: S
                       setTestStatus('idle');
                     }}
                     placeholder="http://localhost:3001"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-sm"
+                    className="w-full px-4 py-3 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-sm placeholder:text-gray-400"
                   />
                   <p className="text-xs text-gray-500">
                     支持 IP 地址或域名，如: http://192.168.1.100:3001 或 https://uno-server.example.com
