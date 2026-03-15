@@ -35,7 +35,7 @@ export function Game({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [pendingCard, setPendingCard] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [handSortMode, setHandSortMode] = useState<'color' | 'number' | 'smart'>('smart');
+  // 默认使用智能排序
   const [showUnoButton, setShowUnoButton] = useState(false);
   const [skipNotification, setSkipNotification] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
   const lastSkippedIdRef = useRef<string | null>(null); // 防止重复显示跳过提示
@@ -96,42 +96,23 @@ export function Game({
     );
   }, [currentPlayer, isMyTurn, room.settings.allowJumpIn, topCard]);
 
-  // 排序手牌
+  // 智能排序手牌（可出牌在前）
   const sortedHand = useMemo(() => {
     if (!currentPlayer) return [];
     
     const hand = [...currentPlayer.cards];
+    const colorOrder: Record<string, number> = { red: 0, yellow: 1, green: 2, blue: 3, wild: 4 };
     
-    switch (handSortMode) {
-      case 'color':
-        const colorOrder: Record<string, number> = { red: 0, yellow: 1, green: 2, blue: 3, wild: 4 };
-        return hand.sort((a, b) => {
-          const colorDiff = colorOrder[a.color]! - colorOrder[b.color]!;
-          if (colorDiff !== 0) return colorDiff;
-          return (a.value as number) - (b.value as number);
-        });
+    return hand.sort((a, b) => {
+      // 可出牌在前
+      const aPlayable = playableCards.has(a.id) ? 0 : 1;
+      const bPlayable = playableCards.has(b.id) ? 0 : 1;
+      if (aPlayable !== bPlayable) return aPlayable - bPlayable;
       
-      case 'number':
-        return hand.sort((a, b) => {
-          if (a.type === 'number' && b.type === 'number') {
-            return (a.value as number) - (b.value as number);
-          }
-          return a.type === 'number' ? -1 : 1;
-        });
-      
-      case 'smart':
-      default:
-        // 可出牌在前，按类型分组
-        return hand.sort((a, b) => {
-          const aPlayable = playableCards.has(a.id) ? 0 : 1;
-          const bPlayable = playableCards.has(b.id) ? 0 : 1;
-          if (aPlayable !== bPlayable) return aPlayable - bPlayable;
-          
-          const colorOrder: Record<string, number> = { red: 0, yellow: 1, green: 2, blue: 3, wild: 4 };
-          return colorOrder[a.color]! - colorOrder[b.color]!;
-        });
-    }
-  }, [currentPlayer, handSortMode, playableCards]);
+      // 按颜色分组
+      return colorOrder[a.color]! - colorOrder[b.color]!;
+    });
+  }, [currentPlayer, playableCards]);
 
   // 检查是否需要喊UNO（出牌后只剩1张牌时立即显示）
   useEffect(() => {
@@ -406,48 +387,28 @@ export function Game({
 
       {/* 手牌区域 */}
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-700/50">
-        {/* 工具栏 */}
+        {/* 工具栏 - Emoji 区域 */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-400">排序:</span>
-            {(['smart', 'color', 'number'] as const).map((mode) => (
+          {/* 更多 Emoji - 横向滚动 */}
+          <div className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
+            {['👍', '👎', '🔥', '😂', '😭', '😡', '❤️', '🎉', '🤮', '💩', '🤔', '🙄', '🤡', '👻', '🤝', '✨'].map((emoji) => (
               <button
-                key={mode}
-                onClick={() => setHandSortMode(mode)}
-                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                  handSortMode === mode
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                }`}
+                key={emoji}
+                onClick={() => onSendEmoji?.(emoji)}
+                className="text-xl p-2 hover:bg-slate-700 rounded-lg transition-colors flex-shrink-0"
+                title={emoji}
               >
-                {mode === 'smart' ? '智能' : mode === 'color' ? '颜色' : '数字'}
+                {emoji}
               </button>
             ))}
           </div>
           
-          {/* Emoji 快捷发送 - 移动端可横向滚动 */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="flex items-center gap-1 px-2 py-1 bg-slate-800/80 rounded-lg overflow-x-auto max-w-[180px] sm:max-w-none scrollbar-hide">
-              {['👍', '👎', '🔥', '😂', '😭', '😡', '❤️', '🎉', '🤮', '💩'].map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => onSendEmoji?.(emoji)}
-                  className="text-xl p-1.5 hover:bg-slate-700 rounded-md transition-colors flex-shrink-0"
-                  title={emoji}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-            
-            <div className="text-sm text-slate-400 hidden sm:block flex-shrink-0">
-              手牌: {currentPlayer?.cardCount || 0}张
-              {playableCards.size > 0 ? (
-                <span className="ml-2 text-green-400">({playableCards.size}张可出)</span>
-              ) : isMyTurn ? (
-                <span className="ml-2 text-yellow-400">(无牌可出)</span>
-              ) : null}
-            </div>
+          {/* 手牌数量 */}
+          <div className="text-sm text-slate-400 flex-shrink-0 ml-2">
+            {currentPlayer?.cardCount || 0}张
+            {playableCards.size > 0 && (
+              <span className="ml-1 text-green-400">({playableCards.size}可出)</span>
+            )}
           </div>
         </div>
 
