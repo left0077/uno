@@ -28,6 +28,9 @@ function expect(actual: any) {
     },
     toBeTruthy: () => {
       if (!actual) throw new Error(`期望为真值`);
+    },
+    toBeFalsy: () => {
+      if (actual) throw new Error(`期望为假值`);
     }
   };
 }
@@ -38,11 +41,11 @@ test('应该生成108张牌', () => {
   expect(deck).toHaveLength(108);
 });
 
-// 测试2: 颜色分布
+// 测试2: 颜色分布（19张数字牌 + 6张功能牌 = 25张）
 test('应该包含正确数量的各色牌', () => {
   const deck = CardManager.createDeck();
   const redCards = deck.filter((c: Card) => c.color === 'red');
-  expect(redCards).toHaveLength(19);
+  expect(redCards).toHaveLength(25);
 });
 
 // 测试3: 万能牌数量

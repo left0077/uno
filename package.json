@@ -9,7 +9,17 @@
     "dev:server": "cd server && npm run dev",
     "install:all": "npm install && cd client && npm install && cd ../server && npm install",
     "build": "cd server && npm run build",
-    "start": "cd server && npm start"
+    "start": "cd server && npm start",
+    "test": "./test-all.sh",
+    "test:unit": "./test-all.sh",
+    "test:e2e": "cd e2e && npm test",
+    "test:e2e:headed": "cd e2e && npm run test:headed",
+    "test:e2e:ui": "cd e2e && npm run test:ui",
+    "test:card": "cd server && node test-card.mjs",
+    "test:room": "cd server && node test-room.mjs",
+    "test:game": "cd server && node test-game.mjs",
+    "test:client": "cd client && npm run build",
+    "test:all": "npm run test && npm run test:e2e"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

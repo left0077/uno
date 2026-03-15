@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Home } from './pages/Home';
 import { Room } from './pages/Room';
 import { Game } from './pages/Game';
@@ -125,16 +125,16 @@ function App() {
   );
   
   // 断线重连处理
+  const hasReconnectedRef = useRef(false);
+  
   useEffect(() => {
-    // 如果 socket 重新连接成功，且之前有房间状态，尝试重连
-    if (socket.isConnected && store.currentRoom && !isReconnecting) {
+    // 如果 socket 连接成功，且之前有房间状态，尝试重连
+    if (socket.isConnected && store.currentRoom && !isReconnecting && !hasReconnectedRef.current) {
       if (page === 'room' || page === 'game') {
-        // 检查自己是否在游戏中且状态为断开
-        const player = store.currentRoom.players.find(p => p.id === store.userId);
-        if (player && !player.isConnected) {
-          setIsReconnecting(true);
-          socket.reconnect(store.currentRoom.code, store.userId);
-        }
+        // 页面刷新后总是尝试重连（不管 localStorage 中的 isConnected 状态）
+        setIsReconnecting(true);
+        hasReconnectedRef.current = true;
+        socket.reconnect(store.currentRoom.code, store.userId);
       }
     }
   }, [socket.isConnected, store.currentRoom, page, socket, isReconnecting, store.userId]);

@@ -49,6 +49,34 @@ export function useSocket(
   
   // 保存 userId 用于重连
   const userIdRef = useRef(userId);
+  
+  // 使用 ref 保存回调，避免闭包问题
+  const callbacksRef = useRef({
+    onRoomCreated,
+    onRoomJoined,
+    onRoomUpdated,
+    onPlayerJoined,
+    onPlayerLeft,
+    onGameStarted,
+    onGameState,
+    onGameEnded,
+    onError
+  });
+  
+  // 更新 ref 中的回调
+  useEffect(() => {
+    callbacksRef.current = {
+      onRoomCreated,
+      onRoomJoined,
+      onRoomUpdated,
+      onPlayerJoined,
+      onPlayerLeft,
+      onGameStarted,
+      onGameState,
+      onGameEnded,
+      onError
+    };
+  }, [onRoomCreated, onRoomJoined, onRoomUpdated, onPlayerJoined, onPlayerLeft, onGameStarted, onGameState, onGameEnded, onError]);
 
   // 初始化Socket连接
   useEffect(() => {
@@ -92,67 +120,67 @@ export function useSocket(
 
     // 房间事件
     socket.on('room:create', (data) => {
-      if (data.success && onRoomCreated) {
-        onRoomCreated(data.room);
+      if (data.success && callbacksRef.current.onRoomCreated) {
+        callbacksRef.current.onRoomCreated(data.room);
       }
     });
 
     socket.on('room:join', (data) => {
-      if (data.success && onRoomJoined) {
-        onRoomJoined(data.room);
+      if (data.success && callbacksRef.current.onRoomJoined) {
+        callbacksRef.current.onRoomJoined(data.room);
       }
     });
 
     socket.on('room:updated', (room) => {
       console.log('Room updated:', room.code, 'players:', room.players.length);
-      if (onRoomUpdated) {
-        onRoomUpdated(room);
+      if (callbacksRef.current.onRoomUpdated) {
+        callbacksRef.current.onRoomUpdated(room);
       }
     });
 
     socket.on('room:playerJoined', (data) => {
-      if (onPlayerJoined) {
-        onPlayerJoined(data);
+      if (callbacksRef.current.onPlayerJoined) {
+        callbacksRef.current.onPlayerJoined(data);
       }
     });
 
     socket.on('room:playerLeft', (data) => {
-      if (onPlayerLeft) {
-        onPlayerLeft(data);
+      if (callbacksRef.current.onPlayerLeft) {
+        callbacksRef.current.onPlayerLeft(data);
       }
     });
 
     // 游戏事件
     socket.on('game:start', (data) => {
-      if (data.success && onGameStarted) {
-        onGameStarted(data.gameState);
+      if (data.success && callbacksRef.current.onGameStarted) {
+        callbacksRef.current.onGameStarted(data.gameState);
       }
     });
 
     socket.on('game:state', (gameState) => {
-      if (onGameState) {
-        onGameState(gameState);
+      if (callbacksRef.current.onGameState) {
+        callbacksRef.current.onGameState(gameState);
       }
     });
 
     socket.on('game:ended', (data) => {
-      if (onGameEnded) {
-        onGameEnded(data);
+      if (callbacksRef.current.onGameEnded) {
+        callbacksRef.current.onGameEnded(data);
       }
     });
 
     // 质疑结果
     socket.on('game:challengeResult', (data) => {
-      if (onError) {
-        onError({ code: data.success ? 'CHALLENGE_SUCCESS' : 'CHALLENGE_FAILED', message: data.message });
+      if (callbacksRef.current.onError) {
+        callbacksRef.current.onError({ code: data.success ? 'CHALLENGE_SUCCESS' : 'CHALLENGE_FAILED', message: data.message });
       }
     });
 
     // 错误处理
     socket.on('error', (error) => {
       console.error('Socket error:', error);
-      if (onError) {
-        onError(error);
+      if (callbacksRef.current.onError) {
+        callbacksRef.current.onError(error);
       }
     });
 
