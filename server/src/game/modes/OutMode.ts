@@ -614,15 +614,38 @@ export class OutMode implements GameMode {
     if (now >= state.outState.nextOutAt) {
       // 进入下一阶段
       state.outState.phase++;
+      
+      // 注入惩罚卡并设置下一阶段
       if (state.outState.phase === 1) {
         state.outState.maxCards = 15;
-        state.outState.nextOutAt = now + 3 * 60 * 1000; // 3分钟后
+        state.outState.nextOutAt = now + 3 * 60 * 1000;
+        this.injectPenaltyCards(state, 'draw3', 4); // 注入4张+3
       } else if (state.outState.phase === 2) {
         state.outState.maxCards = 8;
         state.outState.nextOutAt = now + 3 * 60 * 1000;
+        this.injectPenaltyCards(state, 'draw5', 4); // 注入4张+5
       } else if (state.outState.phase === 3) {
         state.outState.maxCards = 3;
+        this.injectPenaltyCards(state, 'draw8', 6); // 注入6张+8
       }
     }
+  }
+  
+  private injectPenaltyCards(state: GameState, type: 'draw3' | 'draw5' | 'draw8', count: number): void {
+    const colors = ['red', 'yellow', 'green', 'blue'] as const;
+    
+    for (let i = 0; i < count; i++) {
+      const card: Card = {
+        id: uuidv4(),
+        type,
+        color: type === 'draw8' ? 'wild' : colors[i % 4],
+        value: type === 'draw3' ? 3 : type === 'draw5' ? 5 : 8
+      };
+      // 随机插入牌库
+      const insertIndex = Math.floor(Math.random() * (state.deck.length + 1));
+      state.deck.splice(insertIndex, 0, card);
+    }
+    
+    console.log(`[OutMode] Phase ${state.outState?.phase}: 注入${count}张${type}牌`);
   }
 }
