@@ -2,6 +2,7 @@ import { Room, Player, GameState, GameAction, Card } from '../shared/index.js';
 import { GameMode, GameModeFactory } from './modes/GameMode.js';
 import { StandardMode } from './modes/StandardMode.js';
 import { OutMode } from './modes/OutMode.js';
+import { AIPlayer } from './AIPlayer.js';
 
 // 注册游戏模式
 GameModeFactory.register('standard', StandardMode);
@@ -64,6 +65,9 @@ export class UnoGame {
     
     // 启动回合计时器
     this.startTurnTimer();
+    
+    // 检查首回合是否是AI
+    this.checkAndHandleAITurn();
     
     console.log(`[UnoGame] ${modeName}模式游戏已启动，${room.players.length}名玩家`);
   }
@@ -181,6 +185,54 @@ export class UnoGame {
   private resetTurnTimer(): void {
     this.gameState.turnStartTime = Date.now();
     this.startTurnTimer();
+    
+    // 检查是否是AI回合
+    this.checkAndHandleAITurn();
+  }
+  
+  /**
+   * 检查并处理AI回合
+   */
+  private checkAndHandleAITurn(): void {
+    const currentPlayer = this.gameState.players.find(
+      p => p.id === this.gameState.currentPlayerId
+    );
+    
+    if (!currentPlayer || !currentPlayer.isAI || currentPlayer.eliminated) {
+      return;
+    }
+    
+    // AI延迟后行动
+    const delay = currentPlayer.aiType === 'host' ? 1500 : 1000;
+    
+    setTimeout(() => {
+      // 再次检查状态（可能已经被其他操作改变了）
+      if (this.gameState.currentPlayerId !== currentPlayer.id) return;
+      
+      const action = AIPlayer.getAIAction(
+        currentPlayer,
+        this.gameState,
+        this.gameState.players
+      );
+      
+      if (action) {
+        if (action.type === 'play' && action.cardId) {
+          this.handleAction({
+            type: 'play',
+            playerId: currentPlayer.id,
+            cardIds: [action.cardId],
+            chosenColor: action.chosenColor,
+            timestamp: Date.now()
+          }, currentPlayer.id);
+        } else if (action.type === 'draw') {
+          this.handleAction({
+            type: 'draw',
+            playerId: currentPlayer.id,
+            timestamp: Date.now()
+          }, currentPlayer.id);
+        }
+      }
+    }, delay);
   }
   
   /**
@@ -214,6 +266,37 @@ export class UnoGame {
     this.clearTurnTimer();
     this.mode.destroy?.();
     console.log('[UnoGame] 游戏已销毁');
+  }
+  
+  /**
+   * 处理机器人回合（供SocketHandler调用）
+   */
+  handleBotTurn(player: Player): void {
+    if (!player.isAI || player.eliminated) return;
+    
+    const action = AIPlayer.getAIAction(
+      player,
+      this.gameState,
+      this.gameState.players
+    );
+    
+    if (action) {
+      if (action.type === 'play' && action.cardId) {
+        this.handleAction({
+          type: 'play',
+          playerId: player.id,
+          cardIds: [action.cardId],
+          chosenColor: action.chosenColor,
+          timestamp: Date.now()
+        }, player.id);
+      } else if (action.type === 'draw') {
+        this.handleAction({
+          type: 'draw',
+          playerId: player.id,
+          timestamp: Date.now()
+        }, player.id);
+      }
+    }
   }
   
   // ============ 兼容层方法（测试使用） ============

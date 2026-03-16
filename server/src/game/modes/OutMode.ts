@@ -273,23 +273,21 @@ export class OutMode implements GameMode {
     action: GameAction, 
     playerId: string
   ): GameState {
-    let newState = { ...state };
-    
     // 连打动作
     if (action.type === 'combo') {
-      newState = this.executeComboAction(newState, action as any, playerId);
+      state = this.executeComboAction(state, action as any, playerId);
     } else {
-      // 其他动作委托给标准模式
-      newState = this.standardMode.executeAction(newState, action, playerId);
+      // 其他动作委托给标准模式（直接修改原state）
+      state = this.standardMode.executeAction(state, action, playerId);
     }
     
     // 检查手牌上限
-    newState = this.checkHandLimit(newState);
+    state = this.checkHandLimit(state);
     
     // Out系统检查
-    this.checkOutPhase(newState);
+    this.checkOutPhase(state);
     
-    return newState;
+    return state;
   }
   
   private executeComboAction(
@@ -297,8 +295,7 @@ export class OutMode implements GameMode {
     action: any, 
     playerId: string
   ): GameState {
-    let newState = { ...state };
-    const player = newState.players.find(p => p.id === playerId)!;
+    const player = state.players.find(p => p.id === playerId)!;
     const comboType = action.comboType as ComboType;
     const comboDef = this.comboDefinitions.get(comboType)!;
     
@@ -315,24 +312,24 @@ export class OutMode implements GameMode {
     }
     
     // 加入弃牌堆
-    newState.discardPile.push(...playedCards);
+    state.discardPile.push(...playedCards);
     
     // 获取最后一张牌的颜色作为当前颜色
     const lastCard = playedCards[playedCards.length - 1];
-    newState.currentColor = lastCard.color;
+    state.currentColor = lastCard.color;
     
     // 应用组合效果
-    const effect = comboDef.getEffect(newState, playedCards, playerId);
-    newState = this.applyComboEffect(newState, effect, playerId, action.targetId);
+    const effect = comboDef.getEffect(state, playedCards, playerId);
+    state = this.applyComboEffect(state, effect, playerId, action.targetId);
     
     // 更新手牌数
     player.cardCount = player.cards.length;
     
     // 移动到下一家
-    newState.currentPlayerId = this.getNextPlayerId(newState, playerId);
-    newState.turnStartTime = Date.now();
+    state.currentPlayerId = this.getNextPlayerId(state, playerId);
+    state.turnStartTime = Date.now();
     
-    return newState;
+    return state;
   }
   
   private applyComboEffect(
@@ -341,30 +338,29 @@ export class OutMode implements GameMode {
     playerId: string,
     targetId?: string
   ): GameState {
-    const newState = { ...state };
     
     switch (effect.type) {
       case 'skip':
         // 跳过目标玩家
         if (effect.target === 'next') {
-          const nextId = this.getNextPlayerId(newState, playerId);
-          newState.skippedPlayerId = nextId;
-          newState.currentPlayerId = this.getNextPlayerId(newState, nextId);
+          const nextId = this.getNextPlayerId(state, playerId);
+          state.skippedPlayerId = nextId;
+          state.currentPlayerId = this.getNextPlayerId(state, nextId);
         }
         break;
         
       case 'draw':
         // 让目标摸牌
         if (effect.target === 'next') {
-          const nextPlayer = newState.players.find(
-            p => p.id === this.getNextPlayerId(newState, playerId)
+          const nextPlayer = state.players.find(
+            p => p.id === this.getNextPlayerId(state, playerId)
           );
           if (nextPlayer) {
             for (let i = 0; i < effect.value; i++) {
-              if (newState.deck.length === 0) {
-                this.reshuffleDeck(newState);
+              if (state.deck.length === 0) {
+                this.reshuffleDeck(state);
               }
-              const card = newState.deck.pop();
+              const card = state.deck.pop();
               if (card) {
                 nextPlayer.cards.push(card);
               }
@@ -378,26 +374,26 @@ export class OutMode implements GameMode {
         // 彩虹转移效果
         const actualTargetId = effect.target === 'chooser' 
           ? targetId 
-          : this.getNextPlayerId(newState, playerId);
+          : this.getNextPlayerId(state, playerId);
           
         if (actualTargetId) {
-          const targetPlayer = newState.players.find(p => p.id === actualTargetId);
+          const targetPlayer = state.players.find(p => p.id === actualTargetId);
           if (targetPlayer) {
             let totalDraw = effect.value;  // 基础+3
             
             // 转移累积惩罚
             if (effect.extra?.transferAccumulated && effect.extra.accumulatedValue) {
               totalDraw += effect.extra.accumulatedValue as number;
-              newState.pendingDraw = 0;  // 清除累积
-              newState.pendingDrawType = undefined;
+              state.pendingDraw = 0;  // 清除累积
+              state.pendingDrawType = undefined;
             }
             
             // 执行摸牌
             for (let i = 0; i < totalDraw; i++) {
-              if (newState.deck.length === 0) {
-                this.reshuffleDeck(newState);
+              if (state.deck.length === 0) {
+                this.reshuffleDeck(state);
               }
-              const card = newState.deck.pop();
+              const card = state.deck.pop();
               if (card) {
                 targetPlayer.cards.push(card);
               }
@@ -408,7 +404,7 @@ export class OutMode implements GameMode {
         break;
     }
     
-    return newState;
+    return state;
   }
   
   private getNextPlayerId(state: GameState, currentId: string): string {
@@ -441,24 +437,22 @@ export class OutMode implements GameMode {
   }
   
   private checkHandLimit(state: GameState): GameState {
-    const newState = { ...state };
-    
-    for (const player of newState.players) {
+    for (const player of state.players) {
       if (!player.eliminated && player.cards.length > this.MAX_HAND_SIZE) {
         player.eliminated = true;
         
         // 加入排名（淘汰者排在最后）
-        if (!newState.rankings) newState.rankings = [];
-        newState.rankings.unshift(player.id);  // 淘汰者排在前面（输家）
+        if (!state.rankings) state.rankings = [];
+        state.rankings.unshift(player.id);  // 淘汰者排在前面（输家）
         
         // 手牌移到弃牌堆
-        newState.discardPile.push(...player.cards);
+        state.discardPile.push(...player.cards);
         player.cards = [];
         player.cardCount = 0;
       }
     }
     
-    return newState;
+    return state;
   }
   
   getAvailableActions(state: GameState, playerId: string): GameAction[] {
@@ -585,12 +579,12 @@ export class OutMode implements GameMode {
   
   onTurnEnd(state: GameState, playerId: string): GameState {
     // 标准回合结束处理
-    let newState = this.standardMode.onTurnEnd(state, playerId);
+    state = this.standardMode.onTurnEnd(state, playerId);
     
     // Out系统检查（简化版）
-    this.checkOutPhase(newState);
+    this.checkOutPhase(state);
     
-    return newState;
+    return state;
   }
   
   destroy(): void {
