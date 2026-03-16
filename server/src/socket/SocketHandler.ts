@@ -372,6 +372,37 @@ export function setupSocketHandlers(io: Server): void {
       }
     });
     
+    // 连打出牌（Combo）- Out模式特有
+    socket.on('game:playCombo', (data: { roomCode: string; comboType: 'pair' | 'three' | 'rainbow' | 'straight'; cardIds: string[]; targetId?: string }) => {
+      const game = activeGames.get(data.roomCode);
+      const userId = socketUserMap.get(socket.id) || socket.id;
+      if (!game) {
+        socket.emit(SocketEvents.ERROR, { code: 'GAME_NOT_FOUND', message: '游戏不存在' });
+        return;
+      }
+      
+      const action = {
+        type: 'combo' as const,
+        playerId: userId,
+        comboType: data.comboType,
+        cardIds: data.cardIds,
+        targetId: data.targetId,
+        timestamp: Date.now()
+      };
+      const success = game.handleAction(action, userId);
+      if (!success) {
+        socket.emit(SocketEvents.ERROR, { code: 'INVALID_COMBO', message: '无法执行连打' });
+      } else {
+        // 广播连打出牌成功
+        io.to(data.roomCode).emit('game:comboSuccess', { 
+          playerId: userId, 
+          comboType: data.comboType,
+          cardIds: data.cardIds,
+          targetId: data.targetId
+        });
+      }
+    });
+    
     // 发送聊天消息（emoji/文字）
     socket.on(SocketEvents.SEND_MESSAGE, (data: { roomCode: string; type: 'emoji' | 'text'; content: string }) => {
       const room = roomManager.getRoom(data.roomCode);

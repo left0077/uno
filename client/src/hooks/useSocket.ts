@@ -17,6 +17,7 @@ interface UseSocketReturn extends SocketState {
   removeAI: (roomCode: string, aiId: string) => void;
   startGame: (roomCode: string) => void;
   playCard: (roomCode: string, cardId: string, chosenColor?: string) => void;
+  playCombo: (roomCode: string, comboType: 'pair' | 'three' | 'rainbow' | 'straight', cardIds: string[], targetId?: string) => void;
   drawCard: (roomCode: string) => void;
   callUno: (roomCode: string) => void;
   challengeUno: (roomCode: string, targetId: string) => void;
@@ -221,6 +222,10 @@ export function useSocket(
     socketRef.current?.emit('game:playCard', { roomCode, cardId, chosenColor });
   }, []);
 
+  const playCombo = useCallback((roomCode: string, comboType: 'pair' | 'three' | 'rainbow' | 'straight', cardIds: string[], targetId?: string) => {
+    socketRef.current?.emit('game:playCombo', { roomCode, comboType, cardIds, targetId });
+  }, []);
+
   const drawCard = useCallback((roomCode: string) => {
     socketRef.current?.emit('game:drawCard', { roomCode });
   }, []);
@@ -264,6 +269,7 @@ export function useSocket(
     removeAI,
     startGame,
     playCard,
+    playCombo,
     drawCard,
     callUno,
     challengeUno,

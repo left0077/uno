@@ -337,6 +337,11 @@ function App() {
               socket.playCard(store.currentRoom.code, cardId, chosenColor);
             }
           }}
+          onPlayCombo={(comboType, cardIds, targetId) => {
+            if (store.currentRoom) {
+              socket.playCombo(store.currentRoom.code, comboType, cardIds, targetId);
+            }
+          }}
           onDrawCard={() => {
             if (store.currentRoom) {
               socket.drawCard(store.currentRoom.code);
